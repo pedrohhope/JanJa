@@ -372,8 +372,13 @@ div.person-btn { cursor: default; }
 .dd-panel { position: absolute; z-index: 150; left: 0; width: 380px; max-width: calc(100vw - 24px); padding: 4px; border-radius: var(--r-panel); background: var(--sofa); border: 1px solid var(--rug); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); outline: none; display: flex; flex-direction: column; gap: 2px; animation: dd-in 0.16s var(--ease) both; }
 .dd.up .dd-panel { bottom: calc(100% + 8px); transform-origin: 0 100%; }
 .dd.down .dd-panel { top: calc(100% + 8px); transform-origin: 0 0; }
+/* lista comprida (ex.: os jogos) rola dentro do painel em vez de sair da tela */
+.dd-panel { max-height: min(420px, calc(100dvh - 200px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rug) transparent; }
+.dd-panel::-webkit-scrollbar { width: 8px; }
+.dd-panel::-webkit-scrollbar-thumb { background: var(--rug); border-radius: 4px; }
+.dd-panel::-webkit-scrollbar-thumb:hover { background: var(--dust); }
 @keyframes dd-in { from { opacity: 0; transform: scale(0.96); } }
-.dd-opt { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--r-ctl); cursor: pointer; border: 1px solid transparent; transition: background-color 0.12s; }
+.dd-opt { display: flex; flex: none; align-items: center; gap: 12px; padding: 8px; border-radius: var(--r-ctl); cursor: pointer; border: 1px solid transparent; transition: background-color 0.12s; }
 .dd-opt.active { background: var(--rug); }
 .dd-opt.selected { border-color: rgba(255, 201, 74, 0.5); }
 .dd-ico { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-ctl); background: var(--wall); flex: none; color: var(--dust); }

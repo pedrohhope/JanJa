@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Icon, type IconName } from './icons'
 
 export interface DropdownOption {
@@ -30,6 +30,8 @@ interface Props {
 export function Dropdown({ value, options, onChange, ariaLabel, icon, placement = 'down', tip, buttonText, tour }: Props) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
+  /** altura máxima da lista: o espaço que sobra até a borda da tela (lista comprida rola) */
+  const [maxH, setMaxH] = useState<number | undefined>(undefined)
   const root = useRef<HTMLDivElement>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -61,6 +63,20 @@ export function Dropdown({ value, options, onChange, ariaLabel, icon, placement 
     document.addEventListener('pointerdown', onDown)
     return () => document.removeEventListener('pointerdown', onDown)
   }, [open])
+
+  // mede o espaço até a borda da tela (para baixo ou para cima) e limita a lista a ele
+  useLayoutEffect(() => {
+    if (!open) return
+    const fit = () => {
+      const r = btn.current?.getBoundingClientRect()
+      if (!r) return
+      const room = placement === 'up' ? r.top - 16 : window.innerHeight - r.bottom - 16
+      setMaxH(Math.max(160, Math.min(420, Math.floor(room - 8))))
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [open, placement])
 
   // mantém a opção ativa visível
   useEffect(() => {
@@ -140,6 +156,7 @@ export function Dropdown({ value, options, onChange, ariaLabel, icon, placement 
         <div
           ref={list}
           className="dd-panel"
+          style={maxH ? { maxHeight: maxH } : undefined}
           role="listbox"
           tabIndex={-1}
           aria-label={ariaLabel}
