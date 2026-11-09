@@ -13,6 +13,7 @@ import type { Cell, Placement } from '../../shared/games/naval/fleet'
 import type { NavalView } from '../../shared/games/naval/types'
 import type { MysteryAction, MysteryView } from '../../shared/games/mystery/types'
 import type { PoolView } from '../../shared/games/pool/types'
+import type { StopAction, StopView } from '../../shared/games/stop/types'
 import type { TrucoView } from '../../shared/games/truco/types'
 import type { TycoonView } from '../../shared/games/tycoon/types'
 
@@ -31,7 +32,7 @@ export interface RawEventBatch {
 
 export interface GameClientState {
   lobby: GameLobby | null
-  /** visão do jogo aberto: PokerView, GolfView, ChessView, CheckersView, TycoonView, TrucoView, NavalView, MysteryView ou PoolView, conforme `lobby.gameId` */
+  /** visão do jogo aberto: PokerView, GolfView, ChessView, CheckersView, TycoonView, TrucoView, NavalView, MysteryView, PoolView ou StopView, conforme `lobby.gameId` */
   view: unknown
   /** último lote de eventos recebido (a CENA anima a partir dele; o seq evita animar duas vezes) */
   lastEvents: RawEventBatch | null
@@ -158,9 +159,15 @@ export interface PoolSceneProps {
   onSfx?: (name: SfxName) => void
 }
 
+/** Stop (HTML): campos das categorias e a conferência. As respostas são salvas sozinhas. */
+export interface StopSceneProps {
+  view: StopView
+  onAct: (action: StopAction) => void
+}
+
 // ---------------- ÁUDIO ----------------
 
-export type MusicTrack = 'calma' | 'tensao' | 'vitoria' | 'tiroteio' | 'final'
+export type MusicTrack = 'calma' | 'cisnes' | 'tensao' | 'vitoria' | 'tiroteio' | 'final'
 
 export interface GameAudio {
   /** liga a música (precisa de gesto do usuário antes; chame depois de um clique) */

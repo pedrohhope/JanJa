@@ -7,6 +7,7 @@ import type { PokerEvent } from '../../shared/games/poker/types'
 import type { MysteryEvent } from '../../shared/games/mystery/types'
 import type { NavalEvent } from '../../shared/games/naval/types'
 import type { PoolEvent } from '../../shared/games/pool/types'
+import type { StopEvent } from '../../shared/games/stop/types'
 import type { TrucoEvent } from '../../shared/games/truco/types'
 import type { TycoonEvent } from '../../shared/games/tycoon/types'
 import type { GameId } from '../../shared/games/protocol'
@@ -18,11 +19,14 @@ import {
   chessSfxForEvent,
   chessTrackForEvent,
   duckFromLevel,
+  wantsGameMusic,
   mysterySfxForEvent,
   mysteryTrackForEvent,
   navalSfxForEvent,
   poolSfxForEvent,
   poolTrackForEvent,
+  stopSfxForEvent,
+  stopTrackForEvent,
   navalTrackForEvent,
   golfSfxForEvent,
   golfTrackForEvent,
@@ -52,6 +56,7 @@ function cueFor(gameId: GameId, ev: unknown): SfxCue | null {
   if (gameId === 'naval') return navalSfxForEvent(ev as NavalEvent)
   if (gameId === 'mystery') return mysterySfxForEvent(ev as MysteryEvent)
   if (gameId === 'pool') return poolSfxForEvent(ev as PoolEvent)
+  if (gameId === 'stop') return stopSfxForEvent(ev as StopEvent)
   return sfxForEvent(ev as PokerEvent)
 }
 
@@ -64,12 +69,15 @@ function trackFor(gameId: GameId, ev: unknown): MusicTrack | null {
   if (gameId === 'naval') return navalTrackForEvent(ev as NavalEvent)
   if (gameId === 'mystery') return mysteryTrackForEvent(ev as MysteryEvent)
   if (gameId === 'pool') return poolTrackForEvent(ev as PoolEvent)
+  if (gameId === 'stop') return stopTrackForEvent(ev as StopEvent)
   return trackForEvent(ev as PokerEvent)
 }
 
 interface Props {
   gameId: GameId
   seated: boolean
+  /** a mesa está aberta na tela (quem assiste também ouve a música) */
+  watching: boolean
   started: boolean
   lastEvents: RawEventBatch | null
   /** sons pedidos pela cena (golfe: água, tabela, buraco); `n` sobe a cada um */
@@ -100,7 +108,7 @@ function Probe({ id, stream, muted, onLevel }: MicProbe & { onLevel: (id: string
  * Cuida do áudio da mesa: cria o GameAudio (lazy) depois do primeiro gesto, liga a música para quem está
  * sentado, toca os sfx dos eventos e abaixa a música quando alguém fala. Não desenha nada.
  */
-export function GameAudioDriver({ gameId, seated, started, lastEvents, sceneSfx, soundsOn, musicOn, musicVolume, inviteSeq, sfxBus, track, mics }: Props) {
+export function GameAudioDriver({ gameId, seated, watching, started, lastEvents, sceneSfx, soundsOn, musicOn, musicVolume, inviteSeq, sfxBus, track, mics }: Props) {
   const audio = useRef<GameAudio | null>(null)
   const [ready, setReady] = useState(false)
   const [gesture, setGesture] = useState(false)
@@ -133,8 +141,8 @@ export function GameAudioDriver({ gameId, seated, started, lastEvents, sceneSfx,
     }
   }, [gesture])
 
-  // música só para quem está sentado numa partida em andamento
-  const wantMusic = seated && started && musicOn
+  // música para quem joga ou assiste com a mesa aberta, numa partida em andamento
+  const wantMusic = wantsGameMusic({ seated, watching, started, musicOn })
   useEffect(() => {
     const a = audio.current
     if (!ready || !a) return
