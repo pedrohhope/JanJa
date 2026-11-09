@@ -4,6 +4,7 @@
 import type { ShooterSceneProps } from './shooter/contract'
 import type { CheckersSceneProps, ChessSceneProps, GameAudio, GolfSceneProps, MysterySceneProps, NavalSceneProps, PokerSceneProps, PoolSceneProps, TrucoSceneProps, TycoonSceneProps } from './contract'
 import type { ComponentType } from 'react'
+import { loadChunk } from '../version'
 
 export const loadScene = (): Promise<{ default: ComponentType<PokerSceneProps> }> =>
   import('./scene').then((m) => ({ default: m.PokerScene }))
@@ -43,4 +44,4 @@ export const loadMysteryScene = (): Promise<{ default: ComponentType<MysteryScen
 export const loadPoolScene = (): Promise<{ default: ComponentType<PoolSceneProps> }> =>
   import('./pool/scene').then((m) => ({ default: m.PoolScene }))
 
-export const loadAudio = (): Promise<() => GameAudio> => import('./audio').then((m) => () => m.createGameAudio())
+export const loadAudio = (): Promise<() => GameAudio> => loadChunk(() => import('./audio')).then((m) => () => m.createGameAudio())

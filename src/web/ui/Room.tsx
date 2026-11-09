@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { lazyChunk, watchVersion } from '../version'
 import { DEFAULT_ROOM_NAME, roomUrl } from '../../shared/protocol'
 import { useAudioLevel, useSpeaking } from '../audio'
 import type { PeerView, Route } from '../rtc/PeerManager'
@@ -44,34 +45,34 @@ import { ROOM_STEPS, shouldAskTour, shouldAutoTour } from './tourLogic'
 import { TourPrompt } from './TourPrompt'
 
 // a mesa (Pixi, GSAP, HUD) só é baixada quando há partida
-const PokerSceneLazy = lazy(loadScene)
-const PokerHudLazy = lazy(() => import('./PokerHud').then((m) => ({ default: m.PokerHud })))
+const PokerSceneLazy = lazyChunk(loadScene)
+const PokerHudLazy = lazyChunk(() => import('./PokerHud').then((m) => ({ default: m.PokerHud })))
 // o golfe (Three.js) também só baixa quando há partida de golfe
-const GolfSceneLazy = lazy(loadGolfScene)
-const GolfHudLazy = lazy(() => import('./GolfHud').then((m) => ({ default: m.GolfHud })))
+const GolfSceneLazy = lazyChunk(loadGolfScene)
+const GolfHudLazy = lazyChunk(() => import('./GolfHud').then((m) => ({ default: m.GolfHud })))
 // o tabuleiro do xadrez também
-const ChessSceneLazy = lazy(loadChessScene)
-const ChessHudLazy = lazy(() => import('./ChessHud').then((m) => ({ default: m.ChessHud })))
+const ChessSceneLazy = lazyChunk(loadChessScene)
+const ChessHudLazy = lazyChunk(() => import('./ChessHud').then((m) => ({ default: m.ChessHud })))
 // e o das damas
-const CheckersSceneLazy = lazy(loadCheckersScene)
-const CheckersHudLazy = lazy(() => import('./CheckersHud').then((m) => ({ default: m.CheckersHud })))
+const CheckersSceneLazy = lazyChunk(loadCheckersScene)
+const CheckersHudLazy = lazyChunk(() => import('./CheckersHud').then((m) => ({ default: m.CheckersHud })))
 // e o do Magnata
-const TycoonSceneLazy = lazy(loadTycoonScene)
-const TycoonHudLazy = lazy(() => import('./TycoonHud').then((m) => ({ default: m.TycoonHud })))
+const TycoonSceneLazy = lazyChunk(loadTycoonScene)
+const TycoonHudLazy = lazyChunk(() => import('./TycoonHud').then((m) => ({ default: m.TycoonHud })))
 // e a mesa do truco
-const TrucoSceneLazy = lazy(loadTrucoScene)
-const TrucoHudLazy = lazy(() => import('./TrucoHud').then((m) => ({ default: m.TrucoHud })))
+const TrucoSceneLazy = lazyChunk(loadTrucoScene)
+const TrucoHudLazy = lazyChunk(() => import('./TrucoHud').then((m) => ({ default: m.TrucoHud })))
 // e o Tiro na Sala (a cena Pixi dele ainda é outro pedaço, baixado por loadShooterScene)
-const ShooterStageLazy = lazy(() => import('./ShooterStage').then((m) => ({ default: m.ShooterStage })))
+const ShooterStageLazy = lazyChunk(() => import('./ShooterStage').then((m) => ({ default: m.ShooterStage })))
 // e a batalha naval
-const NavalSceneLazy = lazy(loadNavalScene)
-const NavalHudLazy = lazy(() => import('./NavalHud').then((m) => ({ default: m.NavalHud })))
+const NavalSceneLazy = lazyChunk(loadNavalScene)
+const NavalHudLazy = lazyChunk(() => import('./NavalHud').then((m) => ({ default: m.NavalHud })))
 // e o Mistério
-const MysterySceneLazy = lazy(loadMysteryScene)
-const MysteryHudLazy = lazy(() => import('./MysteryHud').then((m) => ({ default: m.MysteryHud })))
+const MysterySceneLazy = lazyChunk(loadMysteryScene)
+const MysteryHudLazy = lazyChunk(() => import('./MysteryHud').then((m) => ({ default: m.MysteryHud })))
 // e a sinuca
-const PoolSceneLazy = lazy(loadPoolScene)
-const PoolHudLazy = lazy(() => import('./PoolHud').then((m) => ({ default: m.PoolHud })))
+const PoolSceneLazy = lazyChunk(loadPoolScene)
+const PoolHudLazy = lazyChunk(() => import('./PoolHud').then((m) => ({ default: m.PoolHud })))
 
 /** onde ficam as telas compartilhadas durante o golfe e os jogos de tabuleiro: miniaturas empilhadas no canto de cima */
 const CORNER_TV = { w: 208, h: 117, gap: 8, edge: 12 }
@@ -149,6 +150,8 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   // salas visitadas antes, menos esta (lidas uma vez ao entrar)
   const [otherRooms] = useState(() => recentRooms().filter((r) => r.roomId !== roomId).slice(0, 4))
   const toast = useToast()
+  // saiu versão nova do site: avisa antes de alguém abrir um jogo (o pedaço do jogo da versão velha some no deploy)
+  useEffect(() => watchVersion(() => toast('Saiu uma versão nova do JanJa. Recarregue a página quando der.', 'info', 15000)), [toast])
   const control = useControl({ manager: state.manager, screen: state.screen, peers: state.peers, notify: toast })
   const controlling = control.controller.phase === 'active'
   const controlledPeer = control.controlled.phase === 'idle' ? undefined : control.controlled.peer

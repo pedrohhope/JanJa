@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, type ReactElement } from 'react'
+import { Suspense, useEffect, useMemo, useRef, type ReactElement } from 'react'
 import { BOT_SLOT_BASE, type ShooterAction, type ShooterView } from '../../shared/games/shooter/types'
 import type { MusicTrack } from '../game/contract'
 import { loadShooterScene } from '../game/loaders'
@@ -8,8 +8,9 @@ import { BOT_TONES, shooterTrack, type SfxBus } from '../game/shooter/sfxBus'
 import { toneOf } from './Avatar'
 import { ShooterHud } from './ShooterHud'
 import { TvOff } from './Brand'
+import { lazyChunk } from '../version'
 
-const ShooterSceneLazy = lazy(loadShooterScene)
+const ShooterSceneLazy = lazyChunk(loadShooterScene)
 
 export interface ShooterStageProps {
   view: ShooterView
