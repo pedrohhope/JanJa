@@ -17,6 +17,8 @@ import { applyQuality, captureConstraints, isAuto, presetById, type QualityPrese
 import type { SendSummary } from './rtc/stats'
 import { SignalingClient } from './signaling'
 import { getPrefs, setPrefs } from './storage'
+import { getContext } from './audio'
+import { createGatedMic, micAudioConstraints, type GatedMic } from './mic'
 
 export type RoomStatus = 'conectando' | 'aguardando-aprovacao' | 'na-sala' | 'caiu' | 'erro'
 
@@ -47,6 +49,8 @@ export interface RoomState {
   preset: QualityPreset
   /** o próprio mic (para indicador de fala local) */
   micStream?: MediaStream
+  /** o mic cru, antes do corta-ruído (para o medidor dos ajustes) */
+  rawMicStream?: MediaStream
   /** mensagem amigável se o mic foi negado / não existe */
   micError?: string
   /** navegador tem getUserMedia e a permissão não foi negada nesta sessão */
@@ -93,12 +97,6 @@ function summarizeSend(d: SendDiag): SendSummary {
 function sendChanged(a: SendSummary | undefined, b: SendSummary | undefined): boolean {
   if (!a || !b) return a !== b
   return a.lim !== b.lim || a.lvl !== b.lvl || fpsBand(a.fps) !== fpsBand(b.fps)
-}
-
-const MIC_CONSTRAINTS: MediaTrackConstraints = {
-  echoCancellation: true,
-  noiseSuppression: true,
-  autoGainControl: true
 }
 
 /** mensagens de chat mantidas na tela (o servidor guarda só as últimas 50) */
@@ -185,6 +183,9 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
   const signalingRef = useRef<SignalingClient>(undefined)
   const managerRef = useRef<PeerManager>(undefined)
   const micRef = useRef<MediaStream>(undefined)
+  /** mic cru (device real) e o corta-ruído montado sobre ele */
+  const rawMicRef = useRef<MediaStream>(undefined)
+  const gatedRef = useRef<GatedMic>(undefined)
   const meRef = useRef<PeerState>({ ...INITIAL_STATE, micMuted: getPrefs().micMuted })
   const micPendingRef = useRef<Promise<MediaStream | undefined>>(undefined)
   const camRef = useRef<MediaStream>(undefined)
@@ -232,24 +233,31 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
     [publishState]
   )
 
-  /** Pede o mic (ou reaproveita o que está vivo). Em caso de falha preenche micError e devolve undefined. */
+  /** Pede o mic (ou reaproveita o que está vivo), já roteado pelo corta-ruído. Em caso de falha preenche micError e devolve undefined. */
   const acquireMic = useCallback((): Promise<MediaStream | undefined> => {
-    const current = micRef.current
-    if (current?.getAudioTracks().some((t) => t.readyState === 'live')) return Promise.resolve(current)
+    const live = rawMicRef.current?.getAudioTracks().some((t) => t.readyState === 'live')
+    if (live && micRef.current) return Promise.resolve(micRef.current)
     if (micPendingRef.current) return micPendingRef.current
     const pending = (async () => {
       try {
         if (!hasGetUserMedia()) throw new DOMException('sem getUserMedia', 'NotFoundError')
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS, video: false })
+        const prefs = getPrefs()
+        const raw = await navigator.mediaDevices.getUserMedia({ audio: micAudioConstraints(prefs.micNoiseSuppression), video: false })
         if (!mountedRef.current) {
-          stream.getTracks().forEach((t) => t.stop())
+          raw.getTracks().forEach((t) => t.stop())
           return undefined
         }
-        micRef.current = stream
-        patch({ micStream: stream, micError: undefined, micAvailable: true })
-        return stream
+        rawMicRef.current = raw
+        // roteia pelo corta-ruído; sem WebAudio (navegador antigo) envia o mic cru
+        const ctx = getContext()
+        gatedRef.current?.stop()
+        gatedRef.current = ctx ? createGatedMic(ctx, raw, prefs.micGate) : undefined
+        const out = gatedRef.current?.stream ?? raw
+        micRef.current = out
+        patch({ micStream: out, rawMicStream: raw, micError: undefined, micAvailable: true })
+        return out
       } catch (err) {
-        if (mountedRef.current) patch({ micStream: undefined, micError: micErrorMessage(err), micAvailable: false })
+        if (mountedRef.current) patch({ micStream: undefined, rawMicStream: undefined, micError: micErrorMessage(err), micAvailable: false })
         return undefined
       } finally {
         micPendingRef.current = undefined
@@ -264,7 +272,10 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      micRef.current?.getTracks().forEach((t) => t.stop())
+      gatedRef.current?.stop()
+      gatedRef.current = undefined
+      rawMicRef.current?.getTracks().forEach((t) => t.stop())
+      rawMicRef.current = undefined
       micRef.current = undefined
       camRef.current?.getTracks().forEach((t) => t.stop())
       camRef.current = undefined
@@ -456,6 +467,18 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
     setPrefs({ micMuted: false })
   }, [acquireMic, publishState])
 
+  /** Liga/desliga a supressão de ruído do navegador na trilha viva, sem recriar a conexão. */
+  const setMicNoiseSuppression = useCallback((on: boolean) => {
+    setPrefs({ micNoiseSuppression: on })
+    for (const t of rawMicRef.current?.getAudioTracks() ?? []) void t.applyConstraints(micAudioConstraints(on))
+  }, [])
+
+  /** Ajusta o corta-ruído (0..1; 0 = desligado) em tempo real. */
+  const setMicGate = useCallback((threshold: number) => {
+    setPrefs({ micGate: threshold })
+    gatedRef.current?.setThreshold(threshold)
+  }, [])
+
   const stopCamera = useCallback(() => {
     const cam = camRef.current
     camRef.current = undefined
@@ -574,6 +597,8 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
   return {
     state,
     toggleMic,
+    setMicNoiseSuppression,
+    setMicGate,
     startShare,
     stopShare,
     startCamera,
