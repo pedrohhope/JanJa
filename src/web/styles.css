@@ -362,6 +362,42 @@ div.person-btn { cursor: default; }
 .ctl.mic.is-live { --fg: var(--on); box-shadow: 0 0 0 calc(var(--ring, 0) * 1px) var(--lamp); transition: box-shadow 0.1s linear, background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.12s; }
 .ctl.mic.is-muted { --fg: var(--off); }
 
+/* ajustes do microfone: popover ao lado do botão do mic */
+.mic-set { position: relative; display: inline-flex; align-items: center; }
+.mic-set .mic-gear { margin-left: 2px; }
+.mic-set.open .mic-gear { --fg: var(--lamp); --bg: var(--rug); }
+.mic-panel {
+  position: absolute; z-index: 150; left: 0; bottom: calc(100% + 8px);
+  width: 300px; max-width: calc(100vw - 24px); padding: 14px;
+  display: flex; flex-direction: column; gap: 14px;
+  border-radius: var(--r-panel); background: var(--sofa); border: 1px solid var(--rug);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); transform-origin: 0 100%;
+  animation: dd-in 0.16s var(--ease) both;
+}
+.mic-head { font-size: 13px; font-weight: 700; color: var(--dust); }
+.mic-row { display: flex; align-items: center; gap: 12px; }
+.mic-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mic-row-text strong, .mic-sens-head strong { font-size: 14px; font-weight: 700; }
+.mic-row-text small, .mic-sens-head small, .mic-hint { font-size: 12px; color: var(--dust); }
+.switch {
+  flex: none; width: 42px; height: 24px; padding: 0; border-radius: 999px; position: relative;
+  --bg: var(--rug); --bg-h: var(--rug); --bd: var(--rug); --bd-h: var(--dust);
+}
+.switch.on { --bg: var(--lamp); --bg-h: var(--lamp-hi); --bd: var(--lamp); --bd-h: var(--lamp-hi); }
+.switch .knob {
+  position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--paper, #f3ebdd); transition: left 0.15s var(--ease);
+}
+.switch.on .knob { left: 21px; }
+.mic-sens { display: flex; flex-direction: column; gap: 8px; }
+.mic-sens-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.mic-meter { position: relative; height: 10px; border-radius: 5px; background: var(--rug); overflow: hidden; }
+.mic-meter-fill { height: 100%; width: 0; background: var(--dust); transition: width 0.08s linear; }
+.mic-meter.over .mic-meter-fill { background: var(--lamp); }
+.mic-meter-mark { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--wall); transform: translateX(-1px); }
+.mic-set input[type='range'] { width: 100%; margin: 0; accent-color: var(--lamp); }
+.mic-hint { margin-top: -2px; }
+
 /* dropdown */
 .dd { position: relative; flex: none; }
 .dd-btn { padding: 0 12px 0 16px; }

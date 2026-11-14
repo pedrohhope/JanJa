@@ -94,6 +94,10 @@ export interface Prefs {
   musicVolume: number
   /** compartilhar a tela com o som do navegador junto (tem eco: a voz dos amigos volta para eles) */
   shareBrowserAudio: boolean
+  /** supressão de ruído do microfone (filtro do navegador); começa ligada */
+  micNoiseSuppression: boolean
+  /** corta-ruído do mic: nível (0..1) abaixo do qual nada é enviado; 0 = desligado */
+  micGate: number
   /** chat do canal aberto ao lado da tela ou recolhido */
   chatMode: 'coluna' | 'fechado'
 }
@@ -113,6 +117,8 @@ const DEFAULT_PREFS: Prefs = {
   musicOn: true,
   musicVolume: 0.35,
   shareBrowserAudio: false,
+  micNoiseSuppression: true,
+  micGate: 0,
   chatMode: 'coluna'
 }
 
