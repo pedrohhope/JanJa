@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <b>Tela, voz, câmera e poker com os amigos, direto do navegador.</b><br>
+  <b>Tela, voz, câmera e onze jogos com os amigos, direto do navegador.</b><br>
   Ninguém instala nada. O vídeo vai de um PC para o outro (P2P) e a nuvem só apresenta as pessoas.<br>
   Custo zero, no plano grátis da Cloudflare.
 </p>
@@ -38,8 +38,8 @@
   <tr>
     <td width="50%" valign="top">
       <img src="docs/readme/mesa.png" alt="Mesa de poker em pixel art com a tela compartilhada pendurada na parede">
-      <h3>Poker na sala</h3>
-      Texas Hold'em facilitado, com modo rápido de 3 cartas. A mesa ocupa o palco e as telas compartilhadas viram TVs penduradas na parede.
+      <h3>Onze jogos na sala</h3>
+      Poker, truco, sinuca, Stop, batalha naval, Mistério, mini-golfe, xadrez, damas, Magnata e um tiroteio pixel. A mesa ocupa o palco e as telas compartilhadas viram TVs penduradas na parede.
     </td>
     <td width="50%" valign="top">
       <img src="docs/readme/home.png" alt="Tela inicial do JanJa com o Jan e a TV">
@@ -62,6 +62,20 @@
 - **Música chiptune original**, em três faixas que mudam com o jogo e abaixam sozinhas quando alguém fala.
 - **Atalhos:** `P` passa ou paga, `A` aumenta, `D` desiste, `H` mostra a tabela de mãos, `G` destaca uma TV.
 
+### E mais dez jogos
+
+Todos na mesma sala, desenhados em código e com as regras rodando no servidor:
+
+- **Truco** gaudério: baralho de 40 com manilha, partida até 30, envido e flor, em 1x1, 2x2 ou 3x3.
+- **Sinuca** (bola 8) com física de verdade e linha de mira.
+- **Mini-golfe** em 3D, com todo mundo tacando ao mesmo tempo.
+- **Xadrez** e **damas** brasileiras, com relógio, para dois.
+- **Batalha naval**, no clássico ou na salva.
+- **Stop** (adedonha): sai a letra, todo mundo preenche e o STOP fecha a rodada.
+- **Mistério**: um jogo de dedução nosso, para achar quem roubou o quadro do Casarão da Vila.
+- **Magnata**: comprar cidades do Brasil num jogo rápido de imóveis.
+- **Tiro na Sala**: um tiroteio em pixel, em tempo real, que roda no navegador de quem joga.
+
 ### Tudo desenhado em código
 
 <p align="center">
@@ -79,7 +93,7 @@ Não há nenhuma imagem de banco: as cartas, as fichas, a mesa, a lâmpada e o J
    - **Tela inteira** com **"Compartilhar áudio do sistema"** marcado, para enviar o som do PC (jogo, música, vídeo).
    - **Uma aba** com **"Compartilhar áudio da aba"**, para mostrar um vídeo do navegador.
    - **Uma janela**: vai sem som, porque o navegador não captura o áudio de janelas avulsas no Windows.
-5. Para jogar, clique em **Jogos**, abra a mesa e espere os amigos sentarem.
+5. Para jogar, clique em **Jogos**, escolha um e espere os amigos entrarem.
 
 O JanJa tira do áudio capturado o som que ele mesmo toca, ou seja, a voz dos amigos. Assim ninguém ouve o próprio eco (`restrictOwnAudio`, no Chrome e no Edge para Windows e Mac).
 
@@ -91,11 +105,12 @@ O JanJa tira do áudio capturado o som que ele mesmo toca, ou seja, a voz dos am
 | `Esc` | diminui a câmera maximizada |
 
 Mais detalhes:
+- A sala tem **canais**, como numa chamada em grupo: cada um com o seu chat e o seu limite, e o dono cria, renomeia e apaga.
 - Cada tela e cada voz têm o próprio volume, e a saída de áudio pode ser trocada.
 - Na primeira visita o JanJa oferece um tour guiado, que pode ser visto de novo no botão de ajuda.
 - Ao lado de cada pessoa aparece a rota (`direto` ou `via relay`), a latência e o bitrate recebido.
 - O que você escolhe (mic, qualidade, volumes, som da mesa) fica salvo no navegador.
-- Cabem até 5 pessoas por sala. Em mesh, quem compartilha envia a tela uma vez para cada espectador.
+- A mídia vai P2P **dentro de cada canal**: quem compartilha envia a tela uma vez para cada pessoa do canal. Em malha isso vai bem até cerca de 8 pessoas por canal; acima disso só com um servidor de mídia (SFU).
 
 **Navegadores:** no PC, Chrome e Edge fazem tudo. Firefox e Safari compartilham a tela, mas sem o áudio do sistema. No celular dá para assistir, falar, usar a câmera e jogar.
 
@@ -192,7 +207,7 @@ src/
   shared/
     protocol.ts          protocolo da sala (zod), links
     control.ts           protocolo do controle remoto
-    games/               plataforma de jogos + poker (motor, avaliador de mãos, textos)
+    games/               plataforma de jogos + os 11 jogos (motores, regras, textos)
   worker/
     index.ts             rotas (/api/rooms, /ws/:sala) + Durable Object Room
     core.ts              regras da sala, sem nada da Cloudflare (testável no Node)
@@ -201,8 +216,8 @@ src/
     rtc/                 mesh WebRTC (PeerManager) e presets de qualidade
     useRoom.ts           estado da sala, mic, tela e câmera
     control/             controle remoto: captura, máquina de estados, cliente do helper
-    game/                cena em PixiJS, arte em código, música e sons, laboratórios de dev
-    ui/                  telas, sala, câmeras, HUD do poker, tour
+    game/                cenas (PixiJS, Three, SVG), arte em código, música e sons, labs de dev
+    ui/                  telas, sala, câmeras, canais, chat, HUDs dos jogos, tour
 helper/                  JanJa Helper (Rust, Windows)
 scripts/                 sprites, validação de commits
 tests/                   vitest + e2e com puppeteer contra o wrangler dev
@@ -213,7 +228,7 @@ docs/                    padrão de commits e imagens deste README
 
 - A rede local sem internet não funciona, porque a sinalização está na nuvem. Com internet, a mídia vai direto pela rede local de qualquer forma.
 - O áudio de uma janela avulsa não é capturado no Windows. Use a tela inteira ou uma aba.
-- Mais de 5 pessoas exigiria um SFU.
+- Em cada canal, mais de cerca de 8 pessoas na malha exigiria um SFU.
 - O JanJa Helper existe só para Windows.
 
 ## Licença
