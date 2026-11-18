@@ -35,6 +35,7 @@ import { GamesPanel } from './GamesPanel'
 import { ControlBanner, ControlRequestModal, ControlSection } from './Control'
 import { Brand, TvOff } from './Brand'
 import { Jan } from './Pixel'
+import type { RoutePref } from '../../shared/sfu'
 import { Dropdown, type DropdownOption } from './Dropdown'
 import { MicSettings } from './MicSettings'
 import { Icon, SignalBars, type IconName } from './icons'
@@ -146,6 +147,8 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
     startCamera,
     stopCamera,
     setPreset,
+    setScreenRoute,
+    reportScreenSize,
     answerRequest,
     reconnect,
     game,
@@ -360,12 +363,13 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   pinnedRef.current = !!pinnedItem
 
   const tiles = useMemo(() => {
-    const list: { id: string; label: string; stream: MediaStream; local?: boolean }[] = []
-    if (state.screen) list.push({ id: 'me', label: `${name} (você)`, stream: state.screen, local: true })
+    const list: { id: string; label: string; stream: MediaStream; local?: boolean; viaServer?: boolean }[] = []
+    if (state.screen) list.push({ id: 'me', label: `${name} (você)`, stream: state.screen, local: true, viaServer: state.screenRoute === 'sfu' })
     // só vira TV quando a imagem chegou (o áudio da tela pode chegar antes)
-    for (const p of state.peers) if (p.screen && p.screen.getVideoTracks().length > 0) list.push({ id: p.id, label: p.name, stream: p.screen })
+    for (const p of state.peers)
+      if (p.screen && p.screen.getVideoTracks().length > 0) list.push({ id: p.id, label: p.name, stream: p.screen, viaServer: p.screenVia === 'sfu' })
     return list
-  }, [state.screen, state.peers, name])
+  }, [state.screen, state.screenRoute, state.peers, name])
 
   // telas que pararam ficam montadas por ~350 ms para rodar a animação de TV desligando
   const [ghosts, setGhosts] = useState<typeof tiles>([])
@@ -758,6 +762,23 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
       icon: QUALITY_ICON[p.id]
     }))
   ]
+  const budgetOut = state.sfu?.budget === 'esgotado'
+  const routeOptions: DropdownOption[] = [
+    {
+      value: 'auto',
+      label: 'Automática',
+      sub: budgetOut ? 'Cota do mês esgotada: por enquanto vai direta' : 'Usa o servidor da Cloudflare quando 3 ou mais pessoas assistem',
+      icon: 'cloud'
+    },
+    { value: 'mesh', label: 'Sempre direta', sub: 'Sempre P2P, sem servidor', icon: 'screen' },
+    {
+      value: 'sfu',
+      label: 'Sempre pelo servidor',
+      sub: budgetOut ? 'Cota do mês esgotada: por enquanto vai direta' : 'Sempre pelo servidor (bom para internet ruim)',
+      icon: 'cloud'
+    }
+  ]
+  const routeShown = `${routeOptions.find((o) => o.value === state.routePref)?.label ?? 'Automática'}${budgetOut ? ' (cota esgotada)' : ''}`
   const qualityCurrent = qualityOptions.find((o) => o.value === state.preset.id)
   const qualityShown = autoNow ? `Automático · ${autoNow}` : (qualityCurrent?.short ?? qualityCurrent?.label)
   const outputOptions: DropdownOption[] = outputs.map((d) => ({
@@ -1096,6 +1117,8 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
                     onVolume={t.local ? undefined : (v) => setVol('screen', who, v)}
                     sinkId={effectiveSink}
                     badge={showStats && peer ? routeInfo(peer) : undefined}
+                    viaServer={t.viaServer}
+                    onSize={t.local ? undefined : (w, h) => reportScreenSize(t.id, w, h)}
                     table={tableFor(t.id, i)}
                     onSelect={tableMode ? () => setHi((h) => (h === t.id ? null : t.id)) : undefined}
                     control={
@@ -1119,6 +1142,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
               peers={state.peers}
               sendDiag={state.sendDiag}
               log={state.diagLog}
+              budget={state.sfu?.enabled ? state.sfu.budget : undefined}
               me={name}
               showStats={showStats}
               onShowStats={changeShowStats}
@@ -1403,6 +1427,22 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
               buttonText={
                 <>
                   Qualidade <small>{qualityShown}</small>
+                </>
+              }
+            />
+          )}
+
+          {canShare && state.sfu?.enabled && (
+            <Dropdown
+              placement="up"
+              icon="cloud"
+              ariaLabel="Rota da tela"
+              value={state.routePref}
+              options={routeOptions}
+              onChange={(v) => setScreenRoute(v as RoutePref)}
+              buttonText={
+                <>
+                  Rota da tela <small>{routeShown}</small>
                 </>
               }
             />

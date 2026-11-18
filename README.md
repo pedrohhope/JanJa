@@ -167,6 +167,17 @@ npx wrangler secret put TURN_KEY_API_TOKEN
 
 Crie a chave no painel em **Realtime → TURN Server**. O TURN da Cloudflare tem 1.000 GB grátis por mês, e depois disso é cobrado por GB. Só passa pelo TURN o tráfego de quem não conseguiu conexão direta. Sem os segredos, o JanJa usa só STUN e funciona para a maioria das pessoas.
 
+### Tela pelo servidor (SFU, opcional)
+
+Com 3 ou mais pessoas assistindo, ou com o envio no limite, a tela pode passar pelo SFU da Cloudflare: quem compartilha sobe um vídeo só (em 3 camadas) e cada amigo recebe a camada que a internet dele aguenta. Voz, câmera e jogos continuam P2P. Para ligar, crie um app em **Realtime → SFU** no painel e configure:
+
+```bash
+npx wrangler secret put REALTIME_APP_ID
+npx wrangler secret put REALTIME_APP_SECRET
+```
+
+O SFU e o TURN dividem os mesmos 1.000 GB grátis por mês. O JanJa conta o uso num Durable Object próprio (`Budget`): passou de 70% do limite do mês (`SFU_MONTHLY_GB`, padrão 900 no `wrangler.jsonc`), a camada 1080p60 sai; passou de 90%, todo mundo volta para o P2P. Cada sala também tem um teto por dia (`SFU_ROOM_DAILY_GB`, padrão 60). Sem os segredos, nada muda: a tela vai só P2P. No menu **Rota da tela** dá para forçar direto ou servidor.
+
 ## Como funciona
 
 ```

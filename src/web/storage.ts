@@ -1,4 +1,5 @@
 import { MAX_NAME_LENGTH } from '../shared/protocol'
+import { RoutePrefSchema, type RoutePref } from '../shared/sfu'
 
 /**
  * Tudo que o JanJa lembra fica no localStorage deste navegador, com prefixo "janja.".
@@ -100,6 +101,14 @@ export interface Prefs {
   micGate: number
   /** chat do canal aberto ao lado da tela ou recolhido */
   chatMode: 'coluna' | 'fechado'
+  /** por onde a minha tela vai: automático, sempre direta (P2P) ou sempre pelo servidor da Cloudflare */
+  screenRoute: RoutePref
+}
+
+/** Valor salvo que não é uma rota conhecida (versão antiga, edição à mão) volta para o automático. */
+export function parseRoutePref(value: unknown): RoutePref {
+  const r = RoutePrefSchema.safeParse(value)
+  return r.success ? r.data : 'auto'
 }
 
 const DEFAULT_PREFS: Prefs = {
@@ -117,6 +126,8 @@ const DEFAULT_PREFS: Prefs = {
   musicOn: true,
   musicVolume: 0.35,
   shareBrowserAudio: false,
+  chatMode: 'coluna',
+  screenRoute: 'auto'
   micNoiseSuppression: true,
   micGate: 0,
   chatMode: 'coluna'
@@ -158,12 +169,16 @@ function migrateApproval(prefs: Prefs): Prefs {
 let cache: Prefs | undefined
 
 export function getPrefs(): Prefs {
-  cache ??= migrateApproval(migrateAuto({ ...DEFAULT_PREFS, ...legacy(), ...loadJson<Partial<Prefs>>('prefs', {}) }))
+  if (!cache) {
+    const merged = migrateApproval(migrateAuto({ ...DEFAULT_PREFS, ...legacy(), ...loadJson<Partial<Prefs>>('prefs', {}) }))
+    cache = { ...merged, screenRoute: parseRoutePref(merged.screenRoute) }
+  }
   return cache
 }
 
 export function setPrefs(patch: Partial<Prefs>): Prefs {
   cache = { ...getPrefs(), ...patch }
+  cache.screenRoute = parseRoutePref(cache.screenRoute)
   saveJson('prefs', cache)
   return cache
 }

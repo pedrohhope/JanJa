@@ -227,6 +227,7 @@ const PATHS = {
       <circle cx="16.5" cy="16" r="2.5" />
     </>
   ),
+  cloud: <path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4.25 4.25 0 0 1-.5 8.5z" />,
   sliders: (
     <>
       <path d="M4 7h9M19 7h1M4 17h1M11 17h9" />

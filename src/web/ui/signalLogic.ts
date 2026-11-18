@@ -1,4 +1,5 @@
 /** Lógica pura do painel Sinal (sem React nem DOM): testável em Node. */
+import type { BudgetState } from '../../shared/sfu'
 import type { PeerView } from '../rtc/PeerManager'
 import type { DiagEvent, DiagKind, SendDiag } from '../rtc/diag'
 import {
@@ -109,6 +110,16 @@ export function senderLine(name: string, send: SendSummary): string {
   return `Do lado de ${name}: ${what}${lim ? `, ${lim}` : ''}`
 }
 
+/** "direta" (P2P) ou "servidor da Cloudflare"; sem informação = direta */
+export const screenRouteName = (via?: 'mesh' | 'sfu'): string => (via === 'sfu' ? 'servidor da Cloudflare' : 'direta')
+
+/** Aviso do painel quando a cota do servidor não está normal; undefined com tudo em ordem. */
+export function budgetNote(budget?: BudgetState): { tone: 'warn' | 'bad'; text: string } | undefined {
+  if (budget === 'economia') return { tone: 'warn', text: 'Economia: sem 1080p60 pelo servidor.' }
+  if (budget === 'esgotado') return { tone: 'bad', text: 'Cota do mês esgotada: a tela vai pela conexão direta.' }
+  return undefined
+}
+
 export const freezesIn = (history: InboundStats[]): number => history.reduce((a, r) => a + r.freezes, 0)
 
 export interface ReportPeer {
@@ -117,6 +128,7 @@ export interface ReportPeer {
   inbound?: InboundStats
   history: InboundStats[]
   send?: SendSummary
+  via?: 'mesh' | 'sfu'
 }
 
 export interface ReportInput {
@@ -155,11 +167,13 @@ export function buildReport(r: ReportInput): string {
           `travadas ${freezesIn(p.history)} no último minuto`
       )
     }
+    L.push(`  Rota da tela: ${screenRouteName(p.via)}`)
     if (p.send) L.push(`  ${senderLine(p.name, p.send)}`)
   }
   if (r.send) {
     L.push('')
     L.push(`Enviando (${r.send.mode === 'auto' ? 'automático' : 'fixo'}, ${r.send.levelLabel})`)
+    L.push(`Rota da tela: ${screenRouteName(r.send.route)}`)
     if (!r.send.viewers.length) L.push('- Ninguém está assistindo.')
     for (const v of r.send.viewers) L.push(`- ${v.name}: ${outLine(v.out)}`)
   }

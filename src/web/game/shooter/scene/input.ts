@@ -3,7 +3,7 @@
  * As funções puras ficam no topo (testadas sem DOM); a classe InputController liga tudo ao navegador.
  *
  * Mapa: WASD (ou setas) anda, mouse mira, clique segura = automático, Espaço = dash, Q ou botão direito = granada.
- * Tab (placar), M (mic da sala), F (tela cheia) e G (destaque) NÃO são capturados aqui.
+ * Tab ou o botão View do controle (placar, ver `padViewHeld`), M (mic da sala), F (tela cheia) e G (destaque) NÃO são capturados aqui.
  */
 import { BTN_DASH, BTN_FIRE, BTN_GRENADE } from '../../../../shared/games/shooter/types'
 import type { InputState, TouchUiState } from '../contract'
@@ -116,6 +116,14 @@ export function padToInput(p: PadSnapshot): PadResult {
   const dy = (btn(p, 13) > 0.5 ? 1 : 0) - (btn(p, 12) > 0.5 ? 1 : 0)
   const m = dx || dy ? clampUnit(dx, dy) : move
   return { move: m, aim, buttons, active: !!buttons || Math.hypot(m.x, m.y) > 0 || !!aim }
+}
+
+/** botão View (índice 8 no mapeamento "standard") segura o placar, como o Tab */
+export const PAD_VIEW_BUTTON = 8
+
+export function padViewHeld(pads: Iterable<PadSnapshot | null | undefined>): boolean {
+  for (const g of pads) if (g && btn(g, PAD_VIEW_BUTTON) > 0.5) return true
+  return false
 }
 
 // ---------------------------------------------------------------- toque

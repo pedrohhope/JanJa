@@ -9,10 +9,13 @@ import {
   type PeerState,
   type RoomSettings
 } from '../shared/protocol'
+import type { RoutePref, ScreenRoute, SfuInfo } from '../shared/sfu'
 import { gameReducer, initialGameState, isGameMsg } from './game/state'
 import { AUTO_START, autoLevelPreset } from './rtc/autoQuality'
 import type { DiagEvent, SendDiag } from './rtc/diag'
 import { PeerManager, type PeerView } from './rtc/PeerManager'
+import { ScreenRouter } from './rtc/ScreenRouter'
+import { SfuLink } from './rtc/SfuLink'
 import { applyQuality, captureConstraints, isAuto, presetById, type QualityPreset } from './rtc/quality'
 import type { SendSummary } from './rtc/stats'
 import { SignalingClient } from './signaling'
@@ -66,6 +69,12 @@ export interface RoomState {
   diagLog: DiagEvent[]
   /** o que eu estou enviando; undefined quando não compartilho */
   sendDiag?: SendDiag
+  /** tela pelo servidor da Cloudflare: ligado neste site? e como está a cota (ausente = deploy sem SFU) */
+  sfu?: SfuInfo
+  /** por onde a minha tela está indo (só enquanto compartilho) */
+  screenRoute?: ScreenRoute
+  /** escolha salva do menu "Rota da tela" */
+  routePref: RoutePref
 }
 
 /** No máximo uma publicação do resumo de envio a cada 4 s. */
@@ -178,7 +187,8 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
     preset: presetById(getPrefs().presetId),
     micAvailable: hasGetUserMedia(),
     requests: [],
-    diagLog: []
+    diagLog: [],
+    routePref: getPrefs().screenRoute
   })
   const signalingRef = useRef<SignalingClient>(undefined)
   const managerRef = useRef<PeerManager>(undefined)
@@ -193,6 +203,11 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
   const channelRef = useRef<string>(undefined)
   const mountedRef = useRef(false)
   const lastSendPublishRef = useRef(0)
+  /** tela pelo SFU: conexão, roteador, estado do servidor e tamanho em que cada tela aparece */
+  const routerRef = useRef<ScreenRouter>(undefined)
+  const linkRef = useRef<SfuLink>(undefined)
+  const sfuRef = useRef<SfuInfo>({ enabled: false, budget: 'ok' })
+  const sizesRef = useRef(new Map<string, { w: number; h: number }>())
   const [attempt, setAttempt] = useState(0)
 
   // jogo da sala: o estado vem do servidor; a ação leva o seq da última visão
@@ -307,12 +322,44 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
         if (disposed) return signaling.close()
         const manager = new PeerManager(signaling, welcome.peerId, welcome.iceServers)
         managerRef.current = manager
+
+        // tela híbrida: deploy antigo (sem `welcome.sfu`) = desligada
+        sfuRef.current = welcome.sfu ?? { enabled: false, budget: 'ok' }
+        let link: SfuLink | undefined
+        let router: ScreenRouter | undefined
+        /** as pessoas do canal; a tela vem do SFU quando o roteador manda (o resto da UI só lê `screen`) */
+        const viewsNow = (): PeerView[] => {
+          const shown = router?.overrides()
+          return manager.views().map((v) => {
+            const sfuScreen = shown?.get(v.id)
+            return sfuScreen ? { ...v, screen: sfuScreen, screenVia: 'sfu' } : v
+          })
+        }
         manager.onChange(() => {
           if (disposed) return
+          router?.update()
           const sendDiag = manager.sendDiag()
-          patch({ peers: manager.views(), sendDiag })
+          patch({ peers: viewsNow(), sendDiag })
           publishSend(sendDiag)
         })
+        if (sfuRef.current.enabled) {
+          link = new SfuLink({ send: (m) => signaling.send(m) })
+          router = new ScreenRouter({
+            link,
+            manager,
+            getSfu: () => sfuRef.current,
+            getPref: () => getPrefs().screenRoute,
+            publishState,
+            onChange: () => {
+              if (disposed) return
+              patch({ peers: viewsNow(), sendDiag: manager.sendDiag() })
+            }
+          })
+          for (const [id, size] of sizesRef.current) router.reportSize(id, size.w, size.h)
+          routerRef.current = router
+          linkRef.current = link
+          router.start()
+        }
         manager.log.onChange(() => !disposed && patch({ diagLog: manager.log.list() }))
         manager.setMic(micRef.current)
         // reconexão com a câmera ligada: ela continua indo para todo mundo
@@ -379,6 +426,14 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
             case 'signal':
               void manager.handleSignal(msg.from, msg.payload)
               break
+            case 'sfu-reply':
+              link?.handleReply(msg)
+              break
+            case 'sfu-budget':
+              sfuRef.current = { ...sfuRef.current, budget: msg.state }
+              if (!disposed && welcome.sfu) patch({ sfu: sfuRef.current })
+              router?.onBudget()
+              break
             case 'state': {
               const peer = roster.get(msg.from)
               if (peer) roster.set(msg.from, { ...peer, state: msg.state })
@@ -426,10 +481,11 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
           isHost: welcome.isHost,
           me: meRef.current,
           micStream: micRef.current,
-          peers: manager.views(),
+          peers: viewsNow(),
           roster: [...roster.values()],
           channelId: channel,
           settings: welcome.settings,
+          sfu: welcome.sfu,
           diagLog: manager.log.list(),
           sendDiag: manager.sendDiag(),
           manager
@@ -441,13 +497,18 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
 
     return () => {
       disposed = true
+      routerRef.current?.dispose()
+      routerRef.current = undefined
+      // a conexão com o SFU manda o último uso antes de fechar
+      linkRef.current?.dispose()
+      linkRef.current = undefined
       managerRef.current?.dispose()
       managerRef.current = undefined
       signaling.close()
-      meRef.current = { ...meRef.current, sharing: false, screenStreamId: undefined, send: undefined }
-      setState((s) => ({ ...s, screen: undefined, sendDiag: undefined, me: meRef.current, manager: undefined }))
+      meRef.current = { ...meRef.current, sharing: false, screenStreamId: undefined, send: undefined, screenRoute: undefined }
+      setState((s) => ({ ...s, screen: undefined, sendDiag: undefined, sfu: undefined, me: meRef.current, manager: undefined }))
     }
-  }, [roomId, name, hostKey, attempt, patch, acquireMic, publishSend])
+  }, [roomId, name, hostKey, attempt, patch, acquireMic, publishSend, publishState])
 
   const toggleMic = useCallback(async () => {
     if (!meRef.current.micMuted) {
@@ -521,8 +582,10 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
     const manager = managerRef.current
     if (manager && meRef.current.sharing) manager.log.push({ kind: 'tela', text: 'Você parou de compartilhar a tela' })
     manager?.stopScreen()
-    publishState({ sharing: false, screenStreamId: undefined, send: undefined })
+    publishState({ sharing: false, screenStreamId: undefined, send: undefined, screenRoute: undefined })
     patch({ screen: undefined, sendDiag: undefined })
+    // o roteador solta o SFU na próxima rodada; adianta para não deixar a tela publicada
+    void routerRef.current?.tick()
   }, [patch, publishState])
 
   const startShare = useCallback(
@@ -555,6 +618,22 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
     },
     [patch]
   )
+
+  /** escolha do menu "Rota da tela": vale já na próxima rodada do roteador */
+  const setScreenRoute = useCallback(
+    (pref: RoutePref) => {
+      setPrefs({ screenRoute: pref })
+      patch({ routePref: pref })
+      void routerRef.current?.tick()
+    },
+    [patch]
+  )
+
+  /** tamanho em que a tela dessa pessoa aparece (pixels reais): define a camada pedida ao servidor */
+  const reportScreenSize = useCallback((peerId: string, w: number, h: number) => {
+    sizesRef.current.set(peerId, { w, h })
+    routerRef.current?.reportSize(peerId, w, h)
+  }, [])
 
   const answerRequest = useCallback((requestId: string, approved: boolean) => {
     signalingRef.current?.send({ type: 'join-response', requestId, approved })
@@ -594,8 +673,15 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
     [send]
   )
 
+  const view = useMemo<RoomState>(
+    () => ({ ...state, screenRoute: state.me.sharing ? (state.me.screenRoute ?? 'mesh') : undefined }),
+    [state]
+  )
+
   return {
-    state,
+    state: view,
+    setScreenRoute,
+    reportScreenSize,
     toggleMic,
     setMicNoiseSuppression,
     setMicGate,
