@@ -127,7 +127,7 @@ const DEFAULT_PREFS: Prefs = {
   musicVolume: 0.35,
   shareBrowserAudio: false,
   chatMode: 'coluna',
-  screenRoute: 'auto'
+  screenRoute: 'auto',
   micNoiseSuppression: true,
   micGate: 0,
   chatMode: 'coluna'
