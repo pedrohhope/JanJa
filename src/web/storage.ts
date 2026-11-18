@@ -129,8 +129,7 @@ const DEFAULT_PREFS: Prefs = {
   chatMode: 'coluna',
   screenRoute: 'auto',
   micNoiseSuppression: true,
-  micGate: 0,
-  chatMode: 'coluna'
+  micGate: 0
 }
 
 // compatibilidade com a chave antiga de aprovação
