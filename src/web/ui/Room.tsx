@@ -37,6 +37,7 @@ import { Brand, TvOff } from './Brand'
 import { Jan } from './Pixel'
 import type { RoutePref } from '../../shared/sfu'
 import { Dropdown, type DropdownOption } from './Dropdown'
+import { MicSettings } from './MicSettings'
 import { Icon, SignalBars, type IconName } from './icons'
 import { SignalPanel } from './SignalPanel'
 import { LIT, signalHealth } from './signalLogic'
@@ -139,6 +140,8 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   const {
     state,
     toggleMic,
+    setMicNoiseSuppression,
+    setMicGate,
     startShare,
     stopShare,
     startCamera,
@@ -179,6 +182,17 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   const micActive = !micMuted && !!state.micStream
   const myLevel = useAudioLevel(state.micStream, micActive)
   const mySpeaking = useSpeaking(state.micStream, micActive)
+  // ajustes do microfone: supressão de ruído e corta-ruído (guardados em storage)
+  const [noiseSup, setNoiseSup] = useState(() => getPrefs().micNoiseSuppression)
+  const [micGate, setMicGateValue] = useState(() => getPrefs().micGate)
+  const changeNoiseSup = (on: boolean) => {
+    setNoiseSup(on)
+    setMicNoiseSuppression(on)
+  }
+  const changeMicGate = (v: number) => {
+    setMicGateValue(v)
+    setMicGate(v)
+  }
 
   const vol = (kind: 'mic' | 'screen', who: string) => volumes[volumeKey(kind, who)] ?? 1
   const setVol = (kind: 'mic' | 'screen', who: string, v: number) => {
@@ -1363,6 +1377,15 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
             <Icon name={micMuted || micDisabled ? 'micOff' : 'mic'} size={20} />
             <span className="lbl">{micDisabled ? 'Sem mic' : micMuted ? 'Ligar mic' : 'Mutar'}</span>
           </button>
+
+          <MicSettings
+            disabled={micDisabled}
+            rawStream={state.rawMicStream}
+            noiseSuppression={noiseSup}
+            gate={micGate}
+            onNoiseSuppression={changeNoiseSup}
+            onGate={changeMicGate}
+          />
 
           {canCam && (
             <button
