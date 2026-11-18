@@ -12,8 +12,20 @@
     "run_worker_first": ["/api/*", "/ws/*"]
   },
   "durable_objects": {
-    "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+    "bindings": [
+      { "name": "ROOMS", "class_name": "Room" },
+      // orçamento global do SFU (singleton "global")
+      { "name": "BUDGET", "class_name": "Budget" }
+    ]
   },
+  // Tela híbrida (SFU do Cloudflare Realtime). Sem os dois secrets abaixo o SFU fica desligado e a tela vai só P2P:
+  //   npx wrangler secret put REALTIME_APP_ID
+  //   npx wrangler secret put REALTIME_APP_SECRET
+  // (crie o app em Cloudflare > Realtime > SFU). Limites do orçamento, em GB decimais:
+  "vars": { "SFU_MONTHLY_GB": "900", "SFU_ROOM_DAILY_GB": "60" },
   // plano grátis: só Durable Objects com SQLite
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }]
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Room"] },
+    { "tag": "v2", "new_sqlite_classes": ["Budget"] }
+  ]
 }

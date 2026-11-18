@@ -42,6 +42,8 @@ export interface SendDiag {
   mode: 'auto' | 'fixo'
   /** nível atual do automático, ex.: "1080p 60"; ou o nome curto do preset fixo */
   levelLabel: string
+  /** por onde a minha tela está indo agora: malha (P2P) ou servidor da Cloudflare; no servidor `viewers` fica vazio */
+  route?: 'mesh' | 'sfu'
   viewers: Array<{
     id: string
     name: string

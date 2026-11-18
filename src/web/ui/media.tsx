@@ -113,6 +113,10 @@ interface TileProps {
   table?: { mode: 'rect' | 'hi' | 'strip' | 'parked'; style?: CSSProperties }
   /** clique simples na TV (a mesa usa para pôr em destaque) */
   onSelect?: () => void
+  /** a tela está passando pelo servidor da Cloudflare (selo de nuvem) */
+  viaServer?: boolean
+  /** tamanho da imagem na tela, em pixels reais (CSS × devicePixelRatio); o roteador escolhe a camada por ele */
+  onSize?: (w: number, h: number) => void
 }
 
 const IDLE_MS = 2500
@@ -129,7 +133,9 @@ export function VideoTile({
   badge,
   control,
   table,
-  onSelect
+  onSelect,
+  viaServer,
+  onSize
 }: TileProps) {
   const ref = useRef<HTMLVideoElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -153,6 +159,23 @@ export function VideoTile({
     onInput: (m) => control?.onInput(m),
     onRelease: () => control?.onRelease()
   })
+
+  // mede o tamanho em que a imagem aparece (a miniatura pede uma camada leve, a tela cheia a melhor)
+  const sizeCb = useRef(onSize)
+  sizeCb.current = onSize
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box || typeof ResizeObserver === 'undefined') return
+    const report = () => {
+      const r = box.getBoundingClientRect()
+      const dpr = window.devicePixelRatio || 1
+      if (r.width > 0 && r.height > 0) sizeCb.current?.(Math.round(r.width * dpr), Math.round(r.height * dpr))
+    }
+    const ro = new ResizeObserver(report)
+    ro.observe(box)
+    report()
+    return () => ro.disconnect()
+  }, [])
 
   // acompanha a tela cheia deste tile
   useEffect(() => {
@@ -202,6 +225,19 @@ export function VideoTile({
         {/* som da tela num elemento próprio: se o navegador bloquear o som, a imagem continua */}
         {!local && <RemoteAudio stream={stream} volume={volume} sinkId={sinkId} audioOnly />}
         <span className="tile-name">{local ? `${name} (você)` : name}</span>
+        {viaServer && (
+          <span
+            className="tile-via"
+            data-tip="Passando pelo servidor da Cloudflare para ficar estável com mais gente"
+            data-tip-pos="left"
+            role="img"
+            aria-label="Passando pelo servidor da Cloudflare"
+            onClick={stop}
+            onDoubleClick={stop}
+          >
+            <Icon name="cloud" size={16} />
+          </span>
+        )}
 
         {control && controlState !== 'idle' && (
           <div className="control-tag" onClick={stop} onDoubleClick={stop} role="status">

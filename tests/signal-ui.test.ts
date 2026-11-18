@@ -161,3 +161,40 @@ describe('buildReport', () => {
     expect(buildReport(base)).not.toMatch(/[→←↑↓\u{1F300}-\u{1FAFF}]/u)
   })
 })
+
+describe('tela pelo servidor no painel', () => {
+  it('nome da rota e aviso de cota', async () => {
+    const { budgetNote, screenRouteName } = await import('../src/web/ui/signalLogic')
+    expect(screenRouteName()).toBe('direta')
+    expect(screenRouteName('mesh')).toBe('direta')
+    expect(screenRouteName('sfu')).toBe('servidor da Cloudflare')
+    expect(budgetNote('ok')).toBeUndefined()
+    expect(budgetNote(undefined)).toBeUndefined()
+    expect(budgetNote('economia')?.text).toBe('Economia: sem 1080p60 pelo servidor.')
+    expect(budgetNote('esgotado')).toMatchObject({ tone: 'bad' })
+  })
+
+  it('o relatório diz por onde a tela vai', () => {
+    const send: SendDiag = { mode: 'auto', levelLabel: '1080p 30', viewers: [], route: 'sfu' }
+    const text = buildReport({
+      at: 0,
+      me: 'Eu',
+      peers: [{ name: 'Bia', verdict: { health: 'bom', title: 'Sinal limpo', advice: '' }, history: [], via: 'sfu' }],
+      send,
+      events: []
+    })
+    expect(text).toContain('Rota da tela: servidor da Cloudflare')
+  })
+})
+
+describe('preferência da rota da tela', () => {
+  it('valor desconhecido volta para o automático', async () => {
+    const { parseRoutePref } = await import('../src/web/storage')
+    expect(parseRoutePref('mesh')).toBe('mesh')
+    expect(parseRoutePref('sfu')).toBe('sfu')
+    expect(parseRoutePref('auto')).toBe('auto')
+    expect(parseRoutePref('x')).toBe('auto')
+    expect(parseRoutePref(undefined)).toBe('auto')
+    expect(parseRoutePref(3)).toBe('auto')
+  })
+})

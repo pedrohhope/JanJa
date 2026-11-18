@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ClientIdSchema, GameClientMessageSchemas, GameServerMessageSchemas } from './games/protocol'
+import { ScreenRouteSchema, SfuClientMessageSchemas, SfuInfoSchema, SfuServerMessageSchemas } from './sfu'
 
 /**
  * Protocolo de sinalização do JanJa. Cada sala é um Durable Object na Cloudflare que só
@@ -94,7 +95,9 @@ export const PeerStateSchema = z.object({
   /** id do MediaStream da webcam (presente = câmera ligada) */
   camStreamId: z.string().max(128).optional(),
   /** como está o envio da tela (só enquanto compartilha) */
-  send: SendSummarySchema.optional()
+  send: SendSummarySchema.optional(),
+  /** por onde a tela está indo (só enquanto compartilha; ausente = mesh) */
+  screenRoute: ScreenRouteSchema.optional()
 })
 export type PeerState = z.infer<typeof PeerStateSchema>
 
@@ -139,7 +142,8 @@ export const ClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('channel-edit'), channelId: ChannelIdSchema, name: ChannelNameSchema, limit: ChannelLimitSchema }),
   z.object({ type: z.literal('channel-delete'), channelId: ChannelIdSchema }),
   z.object({ type: z.literal('room-rename'), name: RoomNameSchema }),
-  ...GameClientMessageSchemas
+  ...GameClientMessageSchemas,
+  ...SfuClientMessageSchemas
 ])
 export type ClientMessage = z.infer<typeof ClientMessageSchema>
 
@@ -179,7 +183,9 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
     iceServers: z.array(IceServerSchema),
     /** canal onde você entrou */
     channelId: z.string(),
-    settings: RoomSettingsSchema
+    settings: RoomSettingsSchema,
+    /** tela pelo servidor da Cloudflare (ausente = deploy antigo, sem SFU) */
+    sfu: SfuInfoSchema.optional()
   }),
   z.object({ type: z.literal('room-settings'), settings: RoomSettingsSchema }),
   /** alguém (inclusive você) trocou de canal */
@@ -197,7 +203,8 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('state'), from: z.string(), state: PeerStateSchema }),
   z.object({ type: z.literal('pong') }),
   z.object({ type: z.literal('error'), code: ErrorCodeSchema, message: z.string() }),
-  ...GameServerMessageSchemas
+  ...GameServerMessageSchemas,
+  ...SfuServerMessageSchemas
 ])
 export type ServerMessage = z.infer<typeof ServerMessageSchema>
 

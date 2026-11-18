@@ -323,6 +323,9 @@ div.person-btn { cursor: default; }
 .tile-name { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: var(--r-ctl); background: rgba(34, 28, 25, 0.85); font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.2s; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tile.full .tile-name { opacity: 1; }
 .tile.full .tile-name { top: 20px; left: 20px; font-size: 15px; }
+.tile-via { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: var(--r-ctl); background: rgba(34, 28, 25, 0.85); color: var(--paper); cursor: default; }
+.tile.full .tile-via { top: 20px; right: 20px; }
+.tile.full.idle .tile-via { opacity: 0; pointer-events: none; }
 .tile-bar { position: absolute; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: var(--r-ctl); background: rgba(34, 28, 25, 0.9); opacity: 0; transform: translateY(4px); transition: opacity 0.2s, transform 0.2s var(--ease); cursor: default; }
 .tile:hover .tile-bar, .tile:focus-within .tile-bar { opacity: 1; transform: none; }
 @media (hover: none) { .tile-bar { opacity: 1; transform: none; } }
@@ -988,6 +991,10 @@ button.icon-btn.sig-btn.open { --bg: var(--rug); --bg-h: var(--rug); --bd: var(-
 .sig-route { flex: none; padding: 0 8px; border: 1px solid var(--rug); border-radius: var(--r-ctl); font-family: 'Pixelify Sans Variable', 'Archivo Variable', system-ui, sans-serif; font-size: 12px; line-height: 20px; color: var(--dust); }
 .sig-route.r-relay { color: var(--lamp); border-color: rgba(255, 201, 74, 0.4); }
 .sig-route.r-falhou { color: var(--off); border-color: rgba(255, 122, 107, 0.4); }
+.sig-routeline { margin: 0; color: var(--dust); font-size: 12.5px; line-height: 1.4; }
+.sig-routeline strong { color: var(--paper); font-weight: 600; }
+.sig-budget { margin: 0; padding: 8px 10px; border: 1px solid rgba(255, 201, 74, 0.4); border-radius: var(--r-ctl); color: var(--lamp); font-size: 13px; line-height: 1.4; }
+.sig-budget.t-bad { border-color: rgba(255, 122, 107, 0.4); color: var(--off); }
 .sig-level { font-family: 'Pixelify Sans Variable', 'Archivo Variable', system-ui, sans-serif; font-size: 22px; font-weight: 600; line-height: 1; color: var(--lamp); }
 .sig-verdict { font-weight: 700; color: var(--tone); line-height: 1.3; }
 .sig-advice { color: var(--dust); font-size: 13px; line-height: 1.45; }
@@ -1121,6 +1128,28 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 .tiro-podium .place-2 .step { height: 62px; background: var(--dust); color: var(--wall); }
 .tiro-podium .place-3 .step { height: 44px; }
 .tiro-podium li.me .n { color: var(--lamp); }
+/* ---------- dicas de botão (teclado e controle) ---------- */
+.key { display: inline-block; min-width: 1.5em; padding: 0 0.4em; font: inherit; font-size: 0.85em; font-weight: 600; line-height: 1.5; text-align: center; color: var(--paper); background: var(--rug); border: 1px solid var(--dust); border-bottom-width: 2px; border-radius: 4px; vertical-align: 0.05em; text-shadow: none; }
+.glyph { --g-bg: var(--rug); --g-fg: var(--paper); display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 1.4em; min-width: 1.4em; vertical-align: -0.3em; font-family: 'Archivo Variable', system-ui, sans-serif; font-size: 1em; font-weight: 800; font-stretch: 100%; line-height: 1; letter-spacing: 0; color: var(--g-fg); background: var(--g-bg); border: 1px solid rgba(243, 235, 221, 0.35); text-shadow: none; }
+.glyph.face { border-radius: 50%; width: 1.4em; padding: 0; font-size: 1em; }
+.glyph.pill { border-radius: 0.6em; padding: 0 0.45em; font-size: 0.8em; height: 1.7em; min-width: 2.2em; vertical-align: -0.45em; }
+.glyph.stick, .glyph.dpad { background: none; border: 0; color: var(--dust); width: 1.5em; height: 1.5em; vertical-align: -0.4em; }
+.glyph-ico, .glyph-sym { display: block; width: 100%; height: 100%; }
+.glyph.face .glyph-sym { width: 82%; height: 82%; }
+.glyph.tom-verde { --g-bg: #2f8f5a; --g-fg: #f3fff7; }
+.glyph.tom-vermelho { --g-bg: #c8473c; --g-fg: #fff5f3; }
+.glyph.tom-azul { --g-bg: #3a74c4; --g-fg: #f2f7ff; }
+.glyph.tom-amarelo { --g-bg: #e5b536; --g-fg: #2b2410; }
+.glyph.tom-rosa { --g-bg: #c06a9f; --g-fg: #fff4fa; }
+.glyph.tom-neutro { --g-bg: var(--paper); --g-fg: var(--wall); }
+.glyph.tom-escuro { --g-bg: var(--wall); --g-fg: var(--paper); }
+.glyph.pill.tom-escuro { border-color: var(--dust); }
+.tiro-hints { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--dust); font-size: 0.9em; }
+.tiro-hints > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tiro-dash > span:first-child { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tiro-help section.now { padding: 2px 10px 6px; margin: 6px -10px 0; background: var(--wall); border-left: 3px solid var(--lamp); border-radius: 4px; }
+.tiro-help h3 em { font-style: normal; color: var(--lamp); }
+.tiro-help li { margin: 3px 0; }
 @keyframes tiro-in { from { opacity: 0; transform: translateX(-8px); } }
 @keyframes tiro-pop { from { opacity: 0; transform: translateX(-50%) scale(0.85); } }
 @media (max-width: 700px) {

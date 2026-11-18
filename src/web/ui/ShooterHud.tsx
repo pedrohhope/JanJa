@@ -1,11 +1,15 @@
 import '@fontsource-variable/pixelify-sans'
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { MAX_HP, WEAPONS, GRENADE, type ScoreLine, type ShooterView, type WeaponId } from '../../shared/games/shooter/types'
 import type { FrameEvent, NetStatus, ShooterFrame, ShooterSession } from '../game/shooter/contract'
 import { CALL_MS, DASH_COOLDOWN_MS, FEED_MS, MULTI_WINDOW_MS, RESPAWN_S, ammoText, callFor, netLabel, podiumOf } from '../game/shooter/hudLogic'
 import { SPAL, rowsToCanvas } from '../game/shooter/scene/palette'
 import { weaponIconRows } from '../game/shooter/scene/sprites'
 import { formatClock } from '../game/helpers'
+import { padViewHeld } from '../game/shooter/scene/input'
+import { useInputDevice } from '../game/useInputDevice'
+import type { InputDevice, PadFamily } from '../game/inputDevice'
+import { Glyph, Key, padLabel } from './InputGlyph'
 import { Icon } from './icons'
 import { VolumeSlider } from './media'
 import { Jan } from './Pixel'
@@ -183,15 +187,49 @@ function Scoreboard({ snap, you, colors, title }: { snap: Snap; you: string | nu
   )
 }
 
-const HELP: { title: string; lines: string[] }[] = [
-  { title: 'Teclado e mouse', lines: ['WASD anda e o mouse mira.', 'Clique atira (segure para atirar sem parar).', 'Espaço dá um dash.', 'Q ou botão direito joga granada.', 'Tab mostra o placar.'] },
-  { title: 'Controle', lines: ['Analógico esquerdo anda e o direito mira.', 'Gatilho direito atira e o esquerdo joga granada.', 'A ou LB dá um dash.'] },
-  { title: 'Celular', lines: ['O joystick da esquerda anda.', 'O da direita mira e atira quando você empurra até a borda.', 'Os botões Dash e Granada ficam no canto.'] }
-]
+interface HelpSection {
+  device: InputDevice
+  title: string
+  lines: ReactNode[]
+}
+
+function helpSections(family: PadFamily): HelpSection[] {
+  const g = (b: Parameters<typeof Glyph>[0]['b']) => <Glyph b={b} family={family} />
+  return [
+    {
+      device: 'teclado',
+      title: 'Teclado e mouse',
+      lines: [
+        <><Key k="WASD" /> anda e o mouse mira.</>,
+        <>Clique atira (segure para atirar sem parar).</>,
+        <><Key k="Espaço" /> dá um dash.</>,
+        <><Key k="Q" /> ou botão direito joga granada.</>,
+        <><Key k="Tab" /> mostra o placar.</>
+      ]
+    },
+    {
+      device: 'controle',
+      title: 'Controle',
+      lines: [
+        <>{g('LS')} anda e {g('RS')} mira.</>,
+        <>{g('RT')} atira e {g('LT')} joga granada.</>,
+        <>{g('A')} ou {g('LB')} dá um dash.</>,
+        <>Segure {g('View')} para ver o placar.</>
+      ]
+    },
+    {
+      device: 'toque',
+      title: 'Celular',
+      lines: ['O joystick da esquerda anda.', 'O da direita mira e atira quando você empurra até a borda.', 'Os botões Dash e Granada ficam no canto.']
+    }
+  ]
+}
 
 export function ShooterHud(p: ShooterHudProps): ReactElement | null {
   const { session, view, you, colors } = p
   const snap = useSnap(session)
+  const { device, family } = useInputDevice()
+  const [padBoard, setPadBoard] = useState(false)
   const [feed, setFeed] = useState<FeedItem[]>([])
   const [call, setCall] = useState<Call | null>(null)
   const [board, setBoard] = useState(false)
@@ -273,6 +311,26 @@ export function ShooterHud(p: ShooterHudProps): ReactElement | null {
       window.removeEventListener('blur', off)
     }
   }, [])
+
+  // botão View do controle segura o placar (sem vibração, só leitura)
+  useEffect(() => {
+    if (p.hidden) return
+    let raf = 0
+    let held = false
+    const loop = () => {
+      raf = requestAnimationFrame(loop)
+      const h = padViewHeld(navigator.getGamepads?.() ?? [])
+      if (h !== held) {
+        held = h
+        setPadBoard(h)
+      }
+    }
+    raf = requestAnimationFrame(loop)
+    return () => {
+      cancelAnimationFrame(raf)
+      setPadBoard(false)
+    }
+  }, [p.hidden])
 
   const toggleHelp = useCallback(() => setHelp((h) => !h), [])
   if (p.hidden) return null
@@ -365,8 +423,15 @@ export function ShooterHud(p: ShooterHudProps): ReactElement | null {
               <span className="num">{me.grenades}</span>
             </span>
           </div>
+          {device === 'controle' && (
+            <div className="tiro-hints">
+              <span><Glyph b="RT" /> Atirar</span>
+              <span><Glyph b="LT" /> Granada</span>
+              <span><Glyph b="View" /> Placar</span>
+            </div>
+          )}
           <div className="tiro-dash" aria-label={dashLeft > 0 ? 'Dash recarregando' : 'Dash pronto'}>
-            <span>Dash</span>
+            <span>Dash{device === 'controle' && <Glyph b="A" />}</span>
             <StatBar value={DASH_COOLDOWN_MS - dashLeft} max={DASH_COOLDOWN_MS} tone="dash" />
           </div>
         </div>
@@ -377,7 +442,7 @@ export function ShooterHud(p: ShooterHudProps): ReactElement | null {
         <span className={`tiro-net ${snap.net}`} role="status">
           {netLabel(snap.net, snap.pingMs)}
         </span>
-        <button className={`icon-btn ${board ? 'on' : ''}`} onClick={() => setBoard((b) => !b)} data-tip="Placar (Tab)" aria-label="Placar" aria-pressed={board}>
+        <button className={`icon-btn ${board ? 'on' : ''}`} onClick={() => setBoard((b) => !b)} data-tip={device === 'controle' ? `Placar (${padLabel('View', family)})` : device === 'toque' ? 'Placar' : 'Placar (Tab)'} aria-label="Placar" aria-pressed={board}>
           <Icon name="chart" size={20} />
         </button>
         {p.onMusicOn && (
@@ -404,12 +469,12 @@ export function ShooterHud(p: ShooterHudProps): ReactElement | null {
               <Icon name="x" size={16} />
             </button>
           </div>
-          {HELP.map((h) => (
-            <section key={h.title}>
-              <h3>{h.title}</h3>
+          {[...helpSections(family)].sort((a, b) => Number(b.device === device) - Number(a.device === device)).map((h) => (
+            <section key={h.title} className={h.device === device ? 'now' : ''}>
+              <h3>{h.title}{h.device === device && <em> (agora)</em>}</h3>
               <ul>
-                {h.lines.map((l) => (
-                  <li key={l}>{l}</li>
+                {h.lines.map((l, i) => (
+                  <li key={i}>{l}</li>
                 ))}
               </ul>
             </section>
@@ -418,7 +483,7 @@ export function ShooterHud(p: ShooterHudProps): ReactElement | null {
         </div>
       )}
 
-      {board && !over && <Scoreboard snap={snap} you={you} colors={colors} title="Placar" />}
+      {(board || padBoard) && !over && <Scoreboard snap={snap} you={you} colors={colors} title="Placar" />}
 
       {/* fim da partida */}
       {over && (

@@ -1,5 +1,6 @@
 import '@fontsource-variable/pixelify-sans'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import type { BudgetState } from '../../shared/sfu'
 import type { PeerView } from '../rtc/PeerManager'
 import type { DiagEvent, DiagKind, SendDiag } from '../rtc/diag'
 import { fmtMbps, fmtPct, fmtRes, type Health } from '../rtc/stats'
@@ -9,11 +10,13 @@ import {
   HOLD,
   LIT,
   ROUTE_TEXT as ROUTE_LABEL,
+  budgetNote,
   buildReport,
   chartBars,
   fmtClock,
   freezesIn,
   peerVerdict,
+  screenRouteName,
   senderLine,
   sendHealth,
   sharersOf,
@@ -82,6 +85,9 @@ function PeerCard({ p }: { p: PeerView }) {
       </header>
       <p className="sig-verdict">{v.title}</p>
       <p className="sig-advice">{v.advice}</p>
+      <p className="sig-routeline">
+        Rota da tela: <strong>{screenRouteName(p.screenVia)}</strong>
+      </p>
       <div className="sig-grid">
         <Metric name="Imagem" value={fmtRes(i?.width, i?.height, i?.fps)} values={h.map((r) => r.fps)} minMax={30} label={`Quadros por segundo de ${p.name}`} />
         <Metric name="Taxa" value={fmtMbps(i?.kbps)} values={h.map((r) => r.kbps)} minMax={500} label={`Taxa de ${p.name}`} />
@@ -147,6 +153,8 @@ interface Props {
   peers: PeerView[]
   sendDiag?: SendDiag
   log: DiagEvent[]
+  /** estado da cota do servidor (ausente = sem servidor neste site) */
+  budget?: BudgetState
   me: string
   showStats: boolean
   onShowStats: (on: boolean) => void
@@ -154,7 +162,7 @@ interface Props {
 }
 
 /** A gaveta "Sinal": como a saúde da conexão está, em português, com um diário do que aconteceu. */
-export function SignalPanel({ peers, sendDiag, log, me, showStats, onShowStats, onClose }: Props) {
+export function SignalPanel({ peers, sendDiag, log, budget, me, showStats, onShowStats, onClose }: Props) {
   const toast = useToast()
   const root = useRef<HTMLElement>(null)
   const sharers = useMemo(() => sharersOf(peers), [peers])
@@ -168,7 +176,7 @@ export function SignalPanel({ peers, sendDiag, log, me, showStats, onShowStats, 
     const text = buildReport({
       at: Date.now(),
       me,
-      peers: sharers.map((p) => ({ name: p.name, verdict: peerVerdict(p), inbound: p.diag.inbound, history: p.diag.history, send: p.state.send })),
+      peers: sharers.map((p) => ({ name: p.name, verdict: peerVerdict(p), inbound: p.diag.inbound, history: p.diag.history, send: p.state.send, via: p.screenVia })),
       send: sendDiag,
       events: log
     })
@@ -182,6 +190,7 @@ export function SignalPanel({ peers, sendDiag, log, me, showStats, onShowStats, 
 
   const events = useMemo(() => [...log].reverse(), [log])
   const tone = health === 'idle' ? 'plain' : TONE_OF[health]
+  const note = budgetNote(budget)
 
   return (
     <aside ref={root} className={`sig-panel t-${tone}`} role="complementary" aria-label="Sinal da conexão" tabIndex={-1}>
@@ -197,6 +206,11 @@ export function SignalPanel({ peers, sendDiag, log, me, showStats, onShowStats, 
       </header>
 
       <div className="sig-body">
+        {note && (
+          <p className={`sig-budget t-${note.tone}`} role="status">
+            {note.text}
+          </p>
+        )}
         <section className="sig-sec" aria-labelledby="sig-h-in">
           <h3 id="sig-h-in">Recebendo</h3>
           {sharers.length === 0 ? <p className="sig-empty">Ninguém está compartilhando a tela agora.</p> : sharers.map((p) => <PeerCard key={p.id} p={p} />)}
@@ -213,7 +227,12 @@ export function SignalPanel({ peers, sendDiag, log, me, showStats, onShowStats, 
               <p className="sig-advice">
                 {sendDiag.mode === 'auto' ? 'A imagem sobe e desce sozinha conforme a internet e o PC.' : 'Você escolheu esta qualidade; ela não muda sozinha.'}
               </p>
-              {sendDiag.viewers.length === 0 ? (
+              <p className="sig-routeline">
+                Rota da tela: <strong>{screenRouteName(sendDiag.route)}</strong>
+              </p>
+              {sendDiag.route === 'sfu' ? (
+                <p className="sig-empty">Você envia uma vez só e o servidor entrega para todo mundo.</p>
+              ) : sendDiag.viewers.length === 0 ? (
                 <p className="sig-empty">Ninguém está assistindo ainda.</p>
               ) : (
                 <ul className="sig-views">

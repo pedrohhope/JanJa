@@ -19,7 +19,9 @@ import {
 } from '../shared/protocol'
 import { cryptoRng, type Rng } from '../shared/games/types'
 import type { GameRegistry } from '../shared/games/registry'
+import { allowedRid, type BudgetState, type Sdp, type SfuErrorCode } from '../shared/sfu'
 import { GameHost, isGameMessage, type GameSnapshot } from './game/host'
+import type { BudgetApi, SfuApi, TrackObject } from './sfuApi'
 
 /**
  * Regras da sala, sem nada da Cloudflare: o Durable Object só adapta WebSockets para `Conn`.
@@ -39,6 +41,18 @@ export interface ConnData {
   chatTimes?: number[]
   /** pedido de entrada aguardando o host */
   pending?: { requestId: string; name: string; clientId?: string; channelId?: string }
+  /** tela pelo SFU: sessão da pessoa e trilhas publicadas/assinadas (mantenha pequeno: vive no attachment) */
+  sfu?: SfuData
+}
+
+/**
+ * O attachment do WebSocket tem limite de 2 KB (o excesso é descartado sem aviso), então as assinaturas
+ * guardam só o mínimo: o resto (sessão e nome da trilha) vem de quem publicou, na hora de usar.
+ */
+export interface SfuData {
+  sessionId?: string
+  pushed?: { streamId: string; tracks: { mid: string; kind: 'audio' | 'video'; trackName: string }[] }
+  pulled?: { mid: string; kind: 'audio' | 'video'; from: string }[]
 }
 
 export interface Conn {
@@ -76,9 +90,30 @@ export interface RoomDeps {
   loadGame?(): GameSnapshot | undefined
   saveGame?(snapshot: GameSnapshot | null): void
   registry?: GameRegistry
+  /** tela híbrida: API do SFU (ausente = `disabled`), orçamento e id da sala (para o orçamento) */
+  sfu?: SfuApi
+  budget?: BudgetApi
+  roomId?(): string | undefined
 }
 
 const joined = (c: Conn): boolean => !!c.data().peerId
+
+const BUDGET_REFRESH_MS = 60_000
+/** o attachment do WebSocket aceita até 2048 bytes serializados */
+const ATTACHMENT_SOFT_MAX = 1800
+
+/** erro esperado de uma mensagem sfu-*: vira `sfu-reply` com `error` */
+class SfuFail extends Error {
+  constructor(
+    readonly code: SfuErrorCode,
+    message: string
+  ) {
+    super(message)
+  }
+}
+
+type SfuMessage = Extract<ClientMessage, { type: `sfu-${string}` }>
+const isSfuMessage = (m: ClientMessage): m is SfuMessage => m.type.startsWith('sfu-')
 
 const CHAT_WINDOW_MS = 10_000
 const CHAT_MAX_IN_WINDOW = 8
@@ -209,6 +244,189 @@ export class RoomCore {
     for (const c of this.peers()) if (this.info(c).channelId === channelId) c.send({ type: 'chat', channelId, message })
   }
 
+  // ---------- tela híbrida (SFU) ----------
+  /** último estado de orçamento conhecido desta sala (memória: volta a ser consultado depois de hibernar) */
+  private budgetKnown: BudgetState = 'ok'
+  private budgetAt = 0
+
+  private nowMs(): number {
+    return (this.deps.now ?? Date.now)()
+  }
+
+  /** estado conhecido; consulta o orçamento no máximo a cada 60 s */
+  private async budgetState(): Promise<BudgetState> {
+    const { budget } = this.deps
+    if (!budget) return 'ok'
+    const now = this.nowMs()
+    if (this.budgetAt && now - this.budgetAt < BUDGET_REFRESH_MS) return this.budgetKnown
+    this.budgetAt = now
+    try {
+      this.budgetKnown = await budget.peek(this.deps.roomId?.() ?? 'sala')
+    } catch (err) {
+      console.warn('[sfu] orçamento indisponível', err)
+    }
+    return this.budgetKnown
+  }
+
+  private patchSfu(conn: Conn, fn: (s: SfuData) => SfuData): void {
+    // relê depois de qualquer await: outra mensagem pode ter mexido no attachment
+    const d = conn.data()
+    const next = { ...d, sfu: fn(d.sfu ?? {}) }
+    // margem para o limite de 2 KB do attachment: as assinaturas mais antigas saem primeiro
+    while (next.sfu.pulled?.length && JSON.stringify(next).length > ATTACHMENT_SOFT_MAX) {
+      next.sfu = { ...next.sfu, pulled: next.sfu.pulled.slice(1) }
+    }
+    conn.setData(next)
+  }
+
+  private async sessionOf(conn: Conn, sfu: SfuApi): Promise<string> {
+    const have = conn.data().sfu?.sessionId
+    if (have) return have
+    const sessionId = await sfu.newSession()
+    const again = conn.data().sfu?.sessionId
+    if (again) return again
+    this.patchSfu(conn, (s) => ({ ...s, sessionId }))
+    return sessionId
+  }
+
+  private async sfuMessage(conn: Conn, msg: SfuMessage): Promise<void> {
+    if (msg.type === 'sfu-usage') return this.sfuUsage(conn, msg.bytes)
+    const reply = (body: { sdp?: Sdp; tracks?: { mid: string; kind: 'audio' | 'video' }[] }) =>
+      conn.send({ type: 'sfu-reply', requestId: msg.requestId, ...body })
+    try {
+      const sfu = this.deps.sfu
+      if (!sfu) throw new SfuFail('disabled', 'A tela pelo servidor não está ligada neste site.')
+      reply(await this.sfuHandle(conn, sfu, msg))
+    } catch (err) {
+      if (err instanceof SfuFail) {
+        return conn.send({ type: 'sfu-reply', requestId: msg.requestId, error: { code: err.code, message: err.message } })
+      }
+      console.warn('[sfu] falha na API', msg.type, err)
+      conn.send({
+        type: 'sfu-reply',
+        requestId: msg.requestId,
+        error: { code: 'api', message: 'O servidor de vídeo não respondeu direito. Tente de novo.' }
+      })
+    }
+  }
+
+  private async sfuHandle(
+    conn: Conn,
+    sfu: SfuApi,
+    msg: Exclude<SfuMessage, { type: 'sfu-usage' }>
+  ): Promise<{ sdp?: Sdp; tracks?: { mid: string; kind: 'audio' | 'video' }[] }> {
+    const me = conn.data()
+
+    if (msg.type === 'sfu-push') {
+      if ((await this.budgetState()) === 'esgotado') throw new SfuFail('budget', 'O limite de uso da tela pelo servidor acabou. Use a tela direta.')
+      const sessionId = await this.sessionOf(conn, sfu)
+      const tracks = msg.tracks.map((t) => ({
+        mid: t.mid,
+        kind: t.kind,
+        trackName: `${t.kind[0]}${this.deps.newId()}`
+      }))
+      const objects: TrackObject[] = tracks.map((t) => ({ location: 'local', mid: t.mid, kind: t.kind, trackName: t.trackName }))
+      const res = await sfu.addTracks(sessionId, objects, msg.sdp)
+      if (!res.sessionDescription) throw new Error('sem answer na resposta do push')
+      this.patchSfu(conn, (s) => ({ ...s, pushed: { streamId: msg.streamId, tracks } }))
+      return { sdp: res.sessionDescription }
+    }
+
+    if (msg.type === 'sfu-pull') {
+      const from = this.peers().find((c) => c.data().peerId === msg.from)
+      const fd = from?.data()
+      const pushed = fd?.sfu?.pushed
+      if (
+        !from ||
+        !fd ||
+        msg.from === me.peerId ||
+        this.info(from).channelId !== this.info(conn).channelId ||
+        fd.state?.screenRoute !== 'sfu' ||
+        fd.state.screenStreamId !== msg.streamId ||
+        !fd.sfu?.sessionId ||
+        pushed?.streamId !== msg.streamId
+      ) {
+        throw new SfuFail('not-allowed', 'Essa tela não está disponível para você.')
+      }
+      const budget = await this.budgetState()
+      if (budget === 'esgotado') throw new SfuFail('budget', 'O limite de uso da tela pelo servidor acabou. Use a tela direta.')
+      const publisherSession = fd.sfu.sessionId
+      const sessionId = await this.sessionOf(conn, sfu)
+      const objects: TrackObject[] = pushed.tracks.map((t) => ({
+        location: 'remote',
+        sessionId: publisherSession,
+        trackName: t.trackName,
+        ...(t.kind === 'video'
+          ? { simulcast: { preferredRid: allowedRid(msg.rid, budget), priorityOrdering: 'asciibetical', ridNotAvailable: 'asciibetical' } }
+          : {})
+      }))
+      const res = await sfu.addTracks(sessionId, objects)
+      if (!res.sessionDescription) throw new Error('sem offer na resposta do pull')
+      const got = pushed.tracks.map((t) => {
+        const mid = res.tracks.find((r) => r.trackName === t.trackName)?.mid
+        if (!mid) throw new Error(`trilha ${t.trackName} sem mid`)
+        return { mid, kind: t.kind, from: msg.from }
+      })
+      this.patchSfu(conn, (s) => ({ ...s, pulled: [...(s.pulled ?? []), ...got] }))
+      return { sdp: res.sessionDescription, tracks: got.map((g) => ({ mid: g.mid, kind: g.kind })) }
+    }
+
+    const sessionId = me.sfu?.sessionId
+    if (!sessionId) throw new SfuFail('bad-state', 'Você ainda não tem conexão com o servidor de vídeo.')
+
+    if (msg.type === 'sfu-answer') {
+      await sfu.renegotiate(sessionId, msg.sdp)
+      return {}
+    }
+
+    if (msg.type === 'sfu-layer') {
+      const sub = me.sfu?.pulled?.find((p) => p.mid === msg.mid)
+      if (!sub || sub.kind !== 'video') throw new SfuFail('bad-state', 'Essa trilha não é um vídeo que você está assistindo.')
+      const pub = this.peers().find((c) => c.data().peerId === sub.from)?.data().sfu
+      const track = pub?.pushed?.tracks.find((t) => t.kind === 'video')
+      if (!pub?.sessionId || !track) throw new SfuFail('bad-state', 'Essa tela não está mais no servidor.')
+      const budget = await this.budgetState()
+      const res = await sfu.updateTracks(sessionId, [
+        {
+          location: 'remote',
+          mid: sub.mid,
+          sessionId: pub.sessionId,
+          trackName: track.trackName,
+          simulcast: { preferredRid: allowedRid(msg.rid, budget), priorityOrdering: 'asciibetical', ridNotAvailable: 'asciibetical' }
+        }
+      ])
+      return res.sessionDescription ? { sdp: res.sessionDescription } : {}
+    }
+
+    // sfu-close
+    const res = await sfu.closeTracks(sessionId, msg.mids, msg.sdp)
+    const gone = new Set(msg.mids)
+    this.patchSfu(conn, (s) => {
+      const tracks = s.pushed?.tracks.filter((t) => !gone.has(t.mid)) ?? []
+      const pulled = s.pulled?.filter((p) => !gone.has(p.mid)) ?? []
+      return {
+        sessionId: s.sessionId,
+        ...(s.pushed && tracks.length ? { pushed: { streamId: s.pushed.streamId, tracks } } : {}),
+        ...(pulled.length ? { pulled } : {})
+      }
+    })
+    return res.sessionDescription ? { sdp: res.sessionDescription } : {}
+  }
+
+  private async sfuUsage(conn: Conn, bytes: number): Promise<void> {
+    const { budget } = this.deps
+    if (!budget || !conn.data().peerId) return
+    try {
+      const state = await budget.report(this.deps.roomId?.() ?? 'sala', bytes)
+      this.budgetAt = this.nowMs()
+      if (state === this.budgetKnown) return
+      this.budgetKnown = state
+      this.broadcast({ type: 'sfu-budget', state })
+    } catch (err) {
+      console.warn('[sfu] não consegui registrar o uso', err)
+    }
+  }
+
   private fail(conn: Conn, code: ErrorCode, message: string, close = false): void {
     conn.send({ type: 'error', code, message })
     if (close) conn.close(4000, code)
@@ -234,6 +452,8 @@ export class RoomCore {
 
     const me = conn.data()
     if (!me.peerId) return this.fail(conn, 'not-joined', 'Entre na sala antes.')
+
+    if (isSfuMessage(msg)) return this.sfuMessage(conn, msg)
 
     if (isGameMessage(msg)) return this.game.handle(conn, msg)
 
@@ -347,7 +567,8 @@ export class RoomCore {
       peers: existing,
       iceServers,
       channelId,
-      settings: this.settings()
+      settings: this.settings(),
+      sfu: { enabled: !!this.deps.sfu, budget: await this.budgetState() }
     })
     this.sendHistory(conn, channelId)
     this.broadcast({ type: 'peer-joined', peer: this.info(conn) }, conn)

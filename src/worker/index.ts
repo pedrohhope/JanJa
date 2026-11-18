@@ -10,6 +10,10 @@ import {
 } from '../shared/protocol'
 import type { GameSnapshot } from './game/host'
 import { RoomCore, type Conn, type ConnData, type RoomConfig } from './core'
+import type { Budget } from './budgetDO'
+import { realtimeApi } from './realtime'
+
+export { Budget } from './budgetDO'
 
 export interface Env {
   ROOMS: DurableObjectNamespace<Room>
@@ -17,6 +21,12 @@ export interface Env {
   /** opcionais: TURN da Cloudflare (Realtime). Sem eles, só STUN. */
   TURN_KEY_ID?: string
   TURN_KEY_API_TOKEN?: string
+  /** tela híbrida: orçamento global e credenciais do Cloudflare Realtime SFU (sem os dois secrets, o SFU fica desligado) */
+  BUDGET: DurableObjectNamespace<Budget>
+  REALTIME_APP_ID?: string
+  REALTIME_APP_SECRET?: string
+  SFU_MONTHLY_GB?: string
+  SFU_ROOM_DAILY_GB?: string
 }
 
 const STUN: IceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }]
@@ -62,6 +72,8 @@ async function turnServers(env: Env): Promise<IceServer[]> {
 export class Room extends DurableObject<Env> {
   private config?: RoomConfig
   private game?: GameSnapshot
+  /** id da sala (para o orçamento do SFU); vem na init ou no header x-room-id */
+  private roomId?: string
   /** histórico do chat por canal (chave "chat:<canal>" no storage) */
   private chat: Record<string, ChatMessage[]> = {}
   /** quando a sala vazia expira (o alarme real é o mínimo entre isto e o prazo do jogo) */
@@ -75,11 +87,17 @@ export class Room extends DurableObject<Env> {
     ctx.blockConcurrencyWhile(async () => {
       this.config = await ctx.storage.get<RoomConfig>('config')
       this.game = await ctx.storage.get<GameSnapshot>('game')
+      this.roomId = await ctx.storage.get<string>('roomId')
       const chats = await ctx.storage.list<ChatMessage[]>({ prefix: 'chat:' })
       for (const [key, messages] of chats) this.chat[key.slice('chat:'.length)] = messages
       this.ttlAt = (await ctx.storage.get<number>('ttlAt')) ?? Date.now() + EMPTY_ROOM_TTL_MS
     })
+    const sfu = env.REALTIME_APP_ID && env.REALTIME_APP_SECRET ? realtimeApi(env.REALTIME_APP_ID, env.REALTIME_APP_SECRET) : undefined
+    const budget = () => env.BUDGET.getByName('global')
     this.core = new RoomCore({
+      sfu,
+      budget: sfu ? { report: (roomId, bytes) => budget().report(roomId, bytes), peek: (roomId) => budget().peek(roomId) } : undefined,
+      roomId: () => this.roomId,
       conns: () => ctx.getWebSockets().map((ws) => this.conn(ws)),
       config: () => this.config,
       saveConfig: (config) => {
@@ -132,10 +150,17 @@ export class Room extends DurableObject<Env> {
     }
   }
 
-  async init(config: RoomConfig): Promise<void> {
+  async init(config: RoomConfig, roomId?: string): Promise<void> {
     this.config = config
     await this.ctx.storage.put('config', config)
+    if (roomId) await this.rememberRoomId(roomId)
     await this.touchTtl()
+  }
+
+  private async rememberRoomId(roomId: string): Promise<void> {
+    if (this.roomId === roomId) return
+    this.roomId = roomId
+    await this.ctx.storage.put('roomId', roomId)
   }
 
   /** Sala (re)começa a contar para expirar. */
@@ -156,6 +181,9 @@ export class Room extends DurableObject<Env> {
 
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Esperava WebSocket', { status: 426 })
+    // salas criadas antes do SFU não guardaram o id: o Worker manda no header
+    const id = request.headers.get('x-room-id')
+    if (id && ROOM_ID_RE.test(id)) await this.rememberRoomId(id)
     const pair = new WebSocketPair()
     const [client, server] = Object.values(pair)
     this.ctx.acceptWebSocket(server)
@@ -207,6 +235,7 @@ export class Room extends DurableObject<Env> {
       }
       this.config = undefined
       this.game = undefined
+      this.roomId = undefined
       this.chat = {}
       this.core.game.reset()
       this.core.resetChat()
@@ -239,11 +268,14 @@ export default {
       if (!parsed.success) return json({ error: 'Pedido inválido.' }, 400)
       const roomId = randomId(16)
       const hostKey = randomId(24)
-      await env.ROOMS.getByName(roomId).init({
-        hostKeyHash: await sha256(hostKey),
-        requireApproval: parsed.data.requireApproval,
-        name: parsed.data.name
-      })
+      await env.ROOMS.getByName(roomId).init(
+        {
+          hostKeyHash: await sha256(hostKey),
+          requireApproval: parsed.data.requireApproval,
+          name: parsed.data.name
+        },
+        roomId
+      )
       return json({ roomId, hostKey } satisfies CreateRoomResponse, 201)
     }
 
@@ -251,7 +283,9 @@ export default {
     if (ws) {
       if (!ROOM_ID_RE.test(ws[1])) return new Response('Sala inválida', { status: 404 })
       if (request.headers.get('Upgrade') !== 'websocket') return new Response('Esperava WebSocket', { status: 426 })
-      return env.ROOMS.getByName(ws[1]).fetch(request)
+      const headers = new Headers(request.headers)
+      headers.set('x-room-id', ws[1])
+      return env.ROOMS.getByName(ws[1]).fetch(new Request(request, { headers }))
     }
 
     if (url.pathname.startsWith('/api/')) return json({ error: 'Não encontrado.' }, 404)
