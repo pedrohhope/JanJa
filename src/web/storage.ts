@@ -95,6 +95,10 @@ export interface Prefs {
   musicVolume: number
   /** compartilhar a tela com o som do navegador junto (tem eco: a voz dos amigos volta para eles) */
   shareBrowserAudio: boolean
+  /** supressão de ruído do microfone (filtro do navegador); começa ligada */
+  micNoiseSuppression: boolean
+  /** corta-ruído do mic: nível (0..1) abaixo do qual nada é enviado; 0 = desligado */
+  micGate: number
   /** chat do canal aberto ao lado da tela ou recolhido */
   chatMode: 'coluna' | 'fechado'
   /** por onde a minha tela vai: automático, sempre direta (P2P) ou sempre pelo servidor da Cloudflare */
@@ -124,6 +128,9 @@ const DEFAULT_PREFS: Prefs = {
   shareBrowserAudio: false,
   chatMode: 'coluna',
   screenRoute: 'auto'
+  micNoiseSuppression: true,
+  micGate: 0,
+  chatMode: 'coluna'
 }
 
 // compatibilidade com a chave antiga de aprovação
