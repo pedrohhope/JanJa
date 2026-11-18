@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { PRESETS } from '../src/web/rtc/quality'
+import { presetById } from '../src/web/rtc/quality'
 import { PeerManager } from '../src/web/rtc/PeerManager'
 
 /** RTCPeerConnection mínimo: só o que o PeerManager usa ao adicionar e tirar trilhas */
@@ -65,7 +65,7 @@ describe('PeerManager: tela fora da malha (SFU)', () => {
   it('com a malha desligada os senders da tela saem de todos, mas os espectadores continuam contando', () => {
     manager.addPeer(info('bia'), true)
     manager.addPeer(info('caio'), true)
-    manager.startScreen(screenStream(), PRESETS[3])
+    manager.startScreen(screenStream(), presetById('jogo'))
     expect(pcs.map((p) => screenSenders(p).length)).toEqual([2, 2])
     expect(manager.screenViewers()).toBe(2)
 
@@ -78,7 +78,7 @@ describe('PeerManager: tela fora da malha (SFU)', () => {
 
   it('peer que chega com a malha desligada não recebe a tela', () => {
     manager.addPeer(info('bia'), true)
-    manager.startScreen(screenStream(), PRESETS[3])
+    manager.startScreen(screenStream(), presetById('jogo'))
     manager.setScreenMesh(false)
     manager.addPeer(info('dani'), true)
     expect(screenSenders(pcs[1]).length).toBe(0)
@@ -88,7 +88,7 @@ describe('PeerManager: tela fora da malha (SFU)', () => {
   it('religar a malha devolve a tela a todos', () => {
     manager.addPeer(info('bia'), true)
     manager.addPeer(info('caio'), true)
-    manager.startScreen(screenStream(), PRESETS[3])
+    manager.startScreen(screenStream(), presetById('jogo'))
     manager.setScreenMesh(false)
     manager.setScreenMesh(true)
     expect(pcs.map((p) => screenSenders(p).length)).toEqual([2, 2])
@@ -98,18 +98,18 @@ describe('PeerManager: tela fora da malha (SFU)', () => {
   it('sem tela compartilhada não há espectadores; nova tela começa na malha', () => {
     manager.addPeer(info('bia'), true)
     expect(manager.screenViewers()).toBe(0)
-    manager.startScreen(screenStream(), PRESETS[3])
+    manager.startScreen(screenStream(), presetById('jogo'))
     manager.setScreenMesh(false)
     manager.stopScreen()
     expect(manager.screenViewers()).toBe(0)
-    manager.startScreen(screenStream(), PRESETS[3])
+    manager.startScreen(screenStream(), presetById('jogo'))
     expect(screenSenders(pcs[0]).length).toBe(2)
   })
 
   it('peer que saiu não conta', () => {
     manager.addPeer(info('bia'), true)
     manager.addPeer(info('caio'), true)
-    manager.startScreen(screenStream(), PRESETS[3])
+    manager.startScreen(screenStream(), presetById('jogo'))
     manager.setScreenMesh(false)
     manager.removePeer('bia')
     expect(manager.screenViewers()).toBe(1)

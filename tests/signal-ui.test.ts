@@ -6,7 +6,9 @@ import {
   GLYPHS,
   buildReport,
   chartBars,
+  encoderText,
   fmtClock,
+  fpsText,
   glyphRects,
   overallHealth,
   senderLine,
@@ -196,5 +198,35 @@ describe('preferência da rota da tela', () => {
     expect(parseRoutePref('x')).toBe('auto')
     expect(parseRoutePref(undefined)).toBe('auto')
     expect(parseRoutePref(3)).toBe('auto')
+  })
+})
+
+describe('encoder e fps no painel de envio', () => {
+  it('encoderText: hardware ou software com o nome, ou o que houver', () => {
+    expect(encoderText(out({ encoder: 'NVENC', hardware: true }))).toBe('hardware (NVENC)')
+    expect(encoderText(out({ encoder: 'libvpx', hardware: false }))).toBe('software (libvpx)')
+    expect(encoderText(out({ hardware: true }))).toBe('hardware')
+    expect(encoderText(out({ encoder: 'libvpx' }))).toBe('software (libvpx)')
+    expect(encoderText(out({ encoder: 'Algo' }))).toBe('Algo')
+    expect(encoderText(out())).toBe('sem dados')
+    expect(encoderText(undefined)).toBe('sem dados')
+  })
+
+  it('fpsText: capturado e enviado', () => {
+    expect(fpsText(out({ capturedFps: 58.4, fps: 34 }))).toBe('captura 58 · envio 34 fps')
+    expect(fpsText(out({ fps: 60 }))).toBe('captura ? · envio 60 fps')
+    expect(fpsText(out())).toBe('sem dados')
+    expect(fpsText(undefined)).toBe('sem dados')
+  })
+
+  it('o relatório inclui fps e encoder da linha de envio', () => {
+    const send: SendDiag = {
+      mode: 'auto',
+      levelLabel: '1080p 60',
+      viewers: [{ id: 'b', name: 'Bia', out: out({ kbps: 5000, capturedFps: 58, fps: 34, encoder: 'libvpx', hardware: false }), history: [] }]
+    }
+    const text = buildReport({ at: 0, me: 'Eu', peers: [], send, events: [] })
+    expect(text).toContain('captura 58 · envio 34 fps')
+    expect(text).toContain('encoder software (libvpx)')
   })
 })

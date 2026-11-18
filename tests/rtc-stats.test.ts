@@ -105,6 +105,20 @@ describe('readStats: recebimento', () => {
   })
 })
 
+describe('readStats: quadros descartados de quem assiste', () => {
+  it('quadros descartados por segundo no intervalo', () => {
+    const base = { id: 'IN1', type: 'inbound-rtp', kind: 'video', bytesReceived: 1_000_000, packetsReceived: 1000, packetsLost: 0, framesDecoded: 100 }
+    const first = readStats([...pairRows(), { ...base, framesDropped: 10 }], undefined, 1000)
+    expect(first.inbound?.droppedFps).toBeUndefined()
+    expect(first.counters.inDropped).toBe(10)
+    const second = readStats([...pairRows(), { ...base, framesDecoded: 160, framesDropped: 40 }], first.counters, 3000)
+    expect(second.inbound?.droppedFps).toBe(15)
+    // contador antigo sem o campo: sem número
+    const old: Counters = { ...first.counters, inDropped: undefined }
+    expect(readStats([...pairRows(), { ...base, framesDropped: 40 }], old, 3000).inbound?.droppedFps).toBeUndefined()
+  })
+})
+
 describe('readStats: envio', () => {
   const out = (o: Partial<StatRow> = {}): StatRow => ({
     id: 'OUT1',
@@ -135,6 +149,26 @@ describe('readStats: envio', () => {
   ])('limitação %s', (reason, expected) => {
     const r = readStats([...pairRows(), out({ qualityLimitationReason: reason })], prev, 2000)
     expect(r.outbound?.limitation).toBe(expected)
+  })
+
+  it('fps capturado (media-source), encoder e hardware', () => {
+    const rows = [
+      ...pairRows(),
+      { id: 'S1', type: 'media-source', kind: 'video', framesPerSecond: 34 },
+      out({ encoderImplementation: 'libvpx', powerEfficientEncoder: false })
+    ]
+    const r = readStats(rows, prev, 2000)
+    expect(r.outbound).toMatchObject({ capturedFps: 34, encoder: 'libvpx', hardware: false })
+    const hw = readStats([...pairRows(), out({ encoderImplementation: 'ExternalEncoder', powerEfficientEncoder: true })], prev, 2000)
+    expect(hw.outbound).toMatchObject({ encoder: 'ExternalEncoder', hardware: true })
+    expect(hw.outbound?.capturedFps).toBeUndefined()
+  })
+
+  it('navegador sem esses campos: tudo indefinido, sem quebrar', () => {
+    const r = readStats([...pairRows(), out()], prev, 2000)
+    expect(r.outbound?.encoder).toBeUndefined()
+    expect(r.outbound?.hardware).toBeUndefined()
+    expect(r.outbound?.capturedFps).toBeUndefined()
   })
 
   it('filtra pela trilha de saída', () => {

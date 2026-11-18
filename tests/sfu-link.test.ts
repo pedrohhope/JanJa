@@ -381,6 +381,20 @@ describe('SfuLink: publicar', () => {
     expect(byRid.c).toMatchObject({ active: true, scaleResolutionDownBy: 1.5 })
     expect(link.publishedRids()).toEqual(['a', 'c'])
   })
+
+  it('degradationPreference e prioridade de rede vão para o sender (publicar, camada a e todas as camadas)', async () => {
+    const s = setup()
+    link = s.link
+    await link.publish(screen(), ENCODINGS, 'maintain-framerate')
+    const sender = s.pcs[0].transceivers[0].sender
+    expect(sender.params.degradationPreference).toBe('maintain-framerate')
+    await link.setTopLayer({ maxBitrate: 4_000_000, maxFramerate: 60, scaleResolutionDownBy: 1.5, degradation: 'balanced' })
+    expect(sender.params.degradationPreference).toBe('balanced')
+    expect(sender.params.encodings[0]).toMatchObject({ priority: 'high', networkPriority: 'high' })
+    await link.setEncodings([{ rid: 'a', scaleResolutionDownBy: 1, maxBitrate: 9_000_000, maxFramerate: 60 }], 'maintain-framerate')
+    expect(sender.params.degradationPreference).toBe('maintain-framerate')
+    expect(sender.params.encodings.find((e) => e.rid === 'a')).toMatchObject({ priority: 'high', networkPriority: 'high' })
+  })
 })
 
 describe('SfuLink: assistir', () => {

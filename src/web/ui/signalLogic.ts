@@ -2,6 +2,7 @@
 import type { BudgetState } from '../../shared/sfu'
 import type { PeerView } from '../rtc/PeerManager'
 import type { DiagEvent, DiagKind, SendDiag } from '../rtc/diag'
+import { encoderKind } from '../rtc/fpsDrop'
 import {
   assess,
   fmtMbps,
@@ -139,12 +140,28 @@ export interface ReportInput {
   events: DiagEvent[]
 }
 
+/** "hardware (NVENC)", "software (libvpx)" ou "sem dados". */
+export function encoderText(o: Pick<OutboundStats, 'encoder' | 'hardware'> | undefined): string {
+  const kind = encoderKind(o?.encoder, o?.hardware)
+  if (!kind) return o?.encoder ?? 'sem dados'
+  return o?.encoder ? `${kind} (${o.encoder})` : kind
+}
+
+/** "captura 58 · envio 34 fps" (o que falta vira "?"); "sem dados" sem nenhum dos dois. */
+export function fpsText(o: Pick<OutboundStats, 'capturedFps' | 'fps'> | undefined): string {
+  if (o?.capturedFps === undefined && o?.fps === undefined) return 'sem dados'
+  const f = (v: number | undefined) => (v === undefined ? '?' : String(Math.round(v)))
+  return `captura ${f(o?.capturedFps)} · envio ${f(o?.fps)} fps`
+}
+
 function outLine(o: OutboundStats | undefined): string {
   if (!o) return 'sem leitura ainda'
   const parts = [`enviando ${fmtMbps(o.kbps)}`]
   if (o.availableKbps !== undefined) parts.push(`banda estimada ${fmtMbps(o.availableKbps)}`)
   if (o.lossPct !== undefined) parts.push(`perda ${fmtPct(o.lossPct)}`)
   if (o.rttMs !== undefined) parts.push(`atraso ${o.rttMs} ms`)
+  if (o.capturedFps !== undefined || o.fps !== undefined) parts.push(fpsText(o))
+  if (o.encoder || o.hardware !== undefined) parts.push(`encoder ${encoderText(o)}`)
   parts.push(`segurando: ${HOLD_TEXT[o.limitation]}`)
   return parts.join(', ')
 }

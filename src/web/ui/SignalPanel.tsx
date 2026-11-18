@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { BudgetState } from '../../shared/sfu'
 import type { PeerView } from '../rtc/PeerManager'
 import type { DiagEvent, DiagKind, SendDiag } from '../rtc/diag'
+import { encoderKind } from '../rtc/fpsDrop'
 import { fmtMbps, fmtPct, fmtRes, type Health } from '../rtc/stats'
 import { Icon, SignalBars } from './icons'
 import {
@@ -13,7 +14,9 @@ import {
   budgetNote,
   buildReport,
   chartBars,
+  encoderText,
   fmtClock,
+  fpsText,
   freezesIn,
   peerVerdict,
   screenRouteName,
@@ -131,6 +134,14 @@ function ViewerRow({ v }: { v: SendDiag['viewers'][number] }) {
         <span className="sig-route">{o ? ROUTE_LABEL[o.route] : 'conectando'}</span>
       </div>
       <dl className="sig-kv">
+        <div>
+          <dt>Fps</dt>
+          <dd>{fpsText(o)}</dd>
+        </div>
+        <div>
+          <dt>Encoder</dt>
+          <dd className={o && encoderKind(o.encoder, o.hardware) === 'software' ? 't-warn' : undefined}>{encoderText(o)}</dd>
+        </div>
         <div>
           <dt>Banda estimada</dt>
           <dd>{o?.availableKbps !== undefined ? fmtMbps(o.availableKbps) : 'sem dados'}</dd>

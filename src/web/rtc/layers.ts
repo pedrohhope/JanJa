@@ -30,12 +30,12 @@ export function sendEncodings(
   const h = Math.max(1, capturedHeight)
   const aHeight = Math.min(h, top.height)
   const out: RTCRtpEncodingParameters[] = [
-    { rid: 'a', scaleResolutionDownBy: round2(h / aHeight), maxFramerate: top.fps, maxBitrate: top.bitrate, active: true }
+    { rid: 'a', scaleResolutionDownBy: round2(h / aHeight), maxFramerate: top.fps, maxBitrate: top.bitrate, active: true, priority: 'high', networkPriority: 'high' }
   ]
   let above = aHeight
   for (const l of [LAYER_B, LAYER_C]) {
     if (l.height >= above * 0.9) continue
-    out.push({ rid: l.rid, scaleResolutionDownBy: round2(h / l.height), maxFramerate: l.maxFramerate, maxBitrate: l.maxBitrate, active: true })
+    out.push({ rid: l.rid, scaleResolutionDownBy: round2(h / l.height), maxFramerate: l.maxFramerate, maxBitrate: l.maxBitrate, active: true, priority: 'high', networkPriority: 'high' })
     above = l.height
   }
   return out

@@ -16,6 +16,8 @@ export interface Counters {
   inPackets: number
   inLost: number
   inFrames: number
+  /** quadros que o decodificador descartou (opcional: leituras antigas não têm) */
+  inDropped?: number
   freezes: number
   outBytes: number
 }
@@ -33,6 +35,8 @@ export interface InboundStats {
   jitterMs?: number
   /** travadas novas no intervalo */
   freezes: number
+  /** quadros descartados por segundo no PC de quem assiste, no intervalo */
+  droppedFps?: number
   codec?: string
 }
 
@@ -51,6 +55,12 @@ export interface OutboundStats {
   /** banda que o navegador estima ter até essa pessoa */
   availableKbps?: number
   codec?: string
+  /** fps que a captura entrega (media-source da minha trilha de tela) */
+  capturedFps?: number
+  /** nome do encoder (ex.: "NVENC", "libvpx", "OpenH264"), se o navegador disser */
+  encoder?: string
+  /** true = encoder de hardware, false = software, undefined = o navegador não informa */
+  hardware?: boolean
 }
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
@@ -111,6 +121,7 @@ export function readStats(
     inPackets: num(vin?.packetsReceived) ?? 0,
     inLost: num(vin?.packetsLost) ?? 0,
     inFrames: num(vin?.framesDecoded) ?? 0,
+    inDropped: num(vin?.framesDropped),
     freezes: num(vin?.freezeCount) ?? 0,
     outBytes: num(vout?.bytesSent) ?? 0
   }
@@ -134,6 +145,10 @@ export function readStats(
       lossPct: fresh && dPk + dLost > 0 ? round1((dLost / (dPk + dLost)) * 100) : fresh ? 0 : undefined,
       jitterMs: jitter !== undefined ? Math.round(jitter * 1000) : undefined,
       freezes: fresh ? Math.max(0, counters.freezes - prev.freezes) : 0,
+      droppedFps:
+        fresh && counters.inDropped !== undefined && prev.inDropped !== undefined && counters.inDropped >= prev.inDropped
+          ? round1((counters.inDropped - prev.inDropped) / dt)
+          : undefined,
       codec: codecOf(rows, vin.codecId)
     }
   }
@@ -144,6 +159,8 @@ export function readStats(
     const remoteIn = rows.find((r) => r.type === 'remote-inbound-rtp' && r.localId === vout.id)
     const frac = num(remoteIn?.fractionLost)
     const lim = vout.qualityLimitationReason
+    const source = typeof vout.mediaSourceId === 'string' ? rows.find((r) => r.id === vout.mediaSourceId) : undefined
+    const impl = typeof vout.encoderImplementation === 'string' && vout.encoderImplementation ? vout.encoderImplementation : undefined
     outbound = {
       route: pair.route,
       rttMs: pair.rttMs,
@@ -154,7 +171,10 @@ export function readStats(
       lossPct: frac !== undefined ? round1(frac * 100) : undefined,
       limitation: lim === 'cpu' || lim === 'bandwidth' || lim === 'other' ? lim : 'none',
       availableKbps: pair.availableKbps,
-      codec: codecOf(rows, vout.codecId)
+      codec: codecOf(rows, vout.codecId),
+      capturedFps: round1(num(source?.framesPerSecond)),
+      encoder: impl,
+      hardware: typeof vout.powerEfficientEncoder === 'boolean' ? vout.powerEfficientEncoder : undefined
     }
   }
   return { inbound, outbound, counters }

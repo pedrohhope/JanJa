@@ -145,7 +145,8 @@ function legacy(): Partial<Prefs> {
 function migrateAuto(prefs: Prefs): Prefs {
   if (load('qualityAutoV1')) return prefs
   save('qualityAutoV1', '1')
-  if (prefs.presetId === 'auto') return prefs
+  // 'auto' (fluidez) e 'auto-nitidez' são escolhas válidas e ficam como estão
+  if (prefs.presetId === 'auto' || prefs.presetId === 'auto-nitidez') return prefs
   const next = { ...prefs, presetId: 'auto' }
   saveJson('prefs', next)
   return next

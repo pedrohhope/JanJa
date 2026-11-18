@@ -4,7 +4,7 @@ import { DEFAULT_ROOM_NAME, roomUrl } from '../../shared/protocol'
 import { useAudioLevel, useSpeaking } from '../audio'
 import type { PeerView, Route } from '../rtc/PeerManager'
 import { useControl } from '../control/useControl'
-import { AUTO_PRESET, PRESETS, bitrateFor, isAuto, presetById } from '../rtc/quality'
+import { AUTO_PRESET, AUTO_SHARP_PRESET, PRESETS, bitrateFor, isAuto, presetById } from '../rtc/quality'
 import { getPrefs, recentRooms, rememberRoom, setPrefs, volumeKey } from '../storage'
 import { useAudioBlocked } from '../playback'
 import { playDoorbell, playKnock, playShareOn, setSoundSink } from '../sounds'
@@ -101,7 +101,17 @@ const ROUTE_LABEL: Record<Route, string> = {
   falhou: 'falhou'
 }
 
-const QUALITY_ICON: Record<string, IconName> = { auto: 'signal', texto: 'panel', equilibrado: 'grid', jogo: 'screen', jogo60: 'focus', nitido: 'expand' }
+const QUALITY_ICON: Record<string, IconName> = {
+  auto: 'signal',
+  'auto-nitidez': 'panel',
+  texto: 'panel',
+  equilibrado: 'grid',
+  '720p60': 'chart',
+  jogo: 'screen',
+  jogo60: 'focus',
+  nitido: 'expand',
+  '1440p60': 'target'
+}
 
 function routeInfo(p: PeerView): string {
   const parts = [ROUTE_LABEL[p.route]]
@@ -748,13 +758,13 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
 
   const autoNow = isAuto(state.preset) && state.sendDiag?.mode === 'auto' ? state.sendDiag.levelLabel : undefined
   const qualityOptions: DropdownOption[] = [
-    {
-      value: AUTO_PRESET.id,
-      label: AUTO_PRESET.label,
-      short: 'Automático',
-      sub: autoNow ? `Agora em ${autoNow}. Sobe e desce sozinha.` : 'Sobe e desce sozinha conforme a internet e o PC',
-      icon: QUALITY_ICON[AUTO_PRESET.id]
-    },
+    ...[AUTO_PRESET, AUTO_SHARP_PRESET].map((p) => ({
+      value: p.id,
+      label: p.label,
+      short: p.label.replace(/\s*\(.*\)\s*$/, ''),
+      sub: autoNow && state.preset.id === p.id ? `Agora em ${autoNow}. ${p.sub}.` : p.sub,
+      icon: QUALITY_ICON[p.id]
+    })),
     ...PRESETS.map((p) => ({
       value: p.id,
       label: p.label.replace(/\s*\(.*\)\s*$/, ''),
@@ -780,7 +790,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   ]
   const routeShown = `${routeOptions.find((o) => o.value === state.routePref)?.label ?? 'Automática'}${budgetOut ? ' (cota esgotada)' : ''}`
   const qualityCurrent = qualityOptions.find((o) => o.value === state.preset.id)
-  const qualityShown = autoNow ? `Automático · ${autoNow}` : (qualityCurrent?.short ?? qualityCurrent?.label)
+  const qualityShown = autoNow ? `${state.preset.id === AUTO_SHARP_PRESET.id ? 'Automático nitidez' : 'Automático'} · ${autoNow}` : (qualityCurrent?.short ?? qualityCurrent?.label)
   const outputOptions: DropdownOption[] = outputs.map((d) => ({
     value: d.deviceId,
     label: d.label || 'Saída de áudio',

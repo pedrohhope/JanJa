@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_START, type AutoSample } from '../src/web/rtc/autoQuality'
+import { AUTO_START, NITIDEZ_LADDER, type AutoSample } from '../src/web/rtc/autoQuality'
 import { CPU_RECOVER_MS, PerViewerAuto, Streak, viewerSendParams } from '../src/web/rtc/perViewerAuto'
 
 const CAP = 5000
@@ -152,7 +152,9 @@ describe('qualidade automática por espectador', () => {
 describe('parâmetros do sender por espectador', () => {
   it('scaleResolutionDownBy = altura capturada / altura do nível (mínimo 1)', () => {
     const cap = { width: 1920, height: 1080 }
-    expect(viewerSendParams(2, 1, cap).scaleResolutionDownBy).toBe(1) // 1080p
+    expect(viewerSendParams(3, 1, cap).scaleResolutionDownBy).toBe(1) // 1080p (fluidez: nível 3)
+    expect(viewerSendParams(2, 1, cap).scaleResolutionDownBy).toBe(1.5) // 720p 60 (fluidez: nível 2)
+    expect(viewerSendParams(2, 1, cap, NITIDEZ_LADDER).scaleResolutionDownBy).toBe(1) // 1080p 30 (nitidez: nível 2)
     expect(viewerSendParams(1, 1, cap).scaleResolutionDownBy).toBe(1.5) // 720p
     expect(viewerSendParams(0, 1, cap).scaleResolutionDownBy).toBe(2.25) // 480p
     expect(viewerSendParams(4, 1, cap).scaleResolutionDownBy).toBe(1) // nível acima da captura
@@ -166,8 +168,35 @@ describe('parâmetros do sender por espectador', () => {
     expect(p.maxBitrate).toBe(Math.round(2_500_000 * 0.65))
     expect(viewerSendParams(3, 1, cap).maxFramerate).toBe(60)
     expect(viewerSendParams(3, 1, cap).maxBitrate).toBe(9_000_000)
+    // nitidez: o nível 2 é 1080p 30 a 5 Mbps
+    expect(viewerSendParams(2, 1, cap, NITIDEZ_LADDER)).toMatchObject({ maxFramerate: 30, maxBitrate: 5_000_000 })
+    expect(viewerSendParams(2, 1, cap)).toMatchObject({ maxFramerate: 60, maxBitrate: 4_000_000 })
     // nível menor gasta menos
     expect(viewerSendParams(0, 2, cap).maxBitrate).toBeLessThan(viewerSendParams(2, 2, cap).maxBitrate)
+  })
+})
+
+describe('degradationPreference do sender', () => {
+  it('60 fps mantém o fps, 30 fps equilibra', () => {
+    const cap = { width: 1920, height: 1080 }
+    expect(viewerSendParams(3, 1, cap).degradationPreference).toBe('maintain-framerate')
+    expect(viewerSendParams(2, 1, cap).degradationPreference).toBe('maintain-framerate')
+    expect(viewerSendParams(1, 1, cap).degradationPreference).toBe('balanced')
+    expect(viewerSendParams(2, 1, cap, NITIDEZ_LADDER).degradationPreference).toBe('balanced')
+    expect(viewerSendParams(3, 1, cap, NITIDEZ_LADDER).degradationPreference).toBe('maintain-framerate')
+  })
+})
+
+describe('escada por espectador', () => {
+  it('a escada vai para cada AutoQuality e o padrão é a fluidez', () => {
+    expect(new PerViewerAuto().ladder[AUTO_START].id).toBe('720p60')
+    const pv = new PerViewerAuto({ ladder: NITIDEZ_LADDER })
+    expect(pv.ladder[AUTO_START].id).toBe('1080p30')
+    pv.add('a')
+    // fps baixo sem folga: na nitidez o 1080p 30 só desce para 720p 30
+    let t = 0
+    for (let i = 0; i < 12; i++, t += 2000) pv.tick(new Map([['a', good({ limitation: 'cpu' })]]), t, () => CAP)
+    expect(pv.level('a')).toBeLessThan(AUTO_START)
   })
 })
 

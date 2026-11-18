@@ -7,11 +7,12 @@ import {
 } from '../../shared/control'
 import type { IceServer, PeerInfo, PeerState, SignalPayload } from '../../shared/protocol'
 import type { SignalingClient } from '../signaling'
-import { AUTO_LADDER, autoLevelPreset, type AutoReason, type AutoSample } from './autoQuality'
+import { autoLevelPreset, ladderOfPreset, type AutoReason, type AutoSample } from './autoQuality'
 import { HISTORY_SIZE, type DiagKind, type PeerDiag, type SendDiag } from './diag'
 import { DiagLog } from './diagLog'
+import { FpsDropTracker, targetFromLabel, type FpsDropEvent } from './fpsDrop'
 import { PerViewerAuto, Streak, viewerSendParams } from './perViewerAuto'
-import { applyQuality, bitrateFor, isAuto, nativeSize, pixelScale, uploadEstimateMbps, type QualityPreset } from './quality'
+import { applyQuality, bitrateFor, degradationFor, isAuto, nativeSize, pixelScale, prioritizeScreen, uploadEstimateMbps, type QualityPreset } from './quality'
 import type { ScreenRoute } from '../../shared/sfu'
 import {
   fmtPct,
@@ -78,6 +79,9 @@ interface Peer {
   outHistory: OutboundStats[]
   /** último momento (performance.now) de cada tipo de evento, para não poluir o diário */
   lastEvent: Map<string, number>
+  /** queda de fps do que eu envio para essa pessoa, e do que ela me envia */
+  fpsSend: FpsDropTracker
+  fpsRecv: FpsDropTracker
   lastBand?: number
   lastRoute?: Route
   /**
@@ -138,6 +142,8 @@ export class PeerManager {
   /** há quanto tempo algum sender da tela está limitado por banda ou CPU */
   private readonly limited = new Streak()
   private lastTickAt = 0
+  /** queda de fps do envio pelo SFU (um único "espectador") */
+  private readonly fpsSfu = new FpsDropTracker()
   private polling = false
   private statsTimer: number
   /** diário de eventos da conexão */
@@ -223,6 +229,8 @@ export class PeerManager {
       history: [],
       outHistory: [],
       lastEvent: new Map(),
+      fpsSend: new FpsDropTracker(),
+      fpsRecv: new FpsDropTracker(),
       ready: initiator
     }
     this.peers.set(peer.id, peer)
@@ -443,7 +451,7 @@ export class PeerManager {
     this.screenMesh = true
     this.useRequested(preset, stream.getVideoTracks()[0])
     this.lastViewers = 0
-    if (this.auto) this.log.push({ kind: 'info', text: `Qualidade automática ligada em ${AUTO_LADDER[this.auto.captureLevel()].label}` })
+    if (this.auto) this.log.push({ kind: 'info', text: `Qualidade automática ligada em ${this.auto.ladder[this.auto.captureLevel()].label}` })
     for (const peer of this.peers.values()) if (peer.ready) this.addStreamTo(peer, stream)
   }
 
@@ -454,11 +462,13 @@ export class PeerManager {
     this.screenMesh = true
     this.auto?.clear()
     this.limited.reset()
+    this.fpsSfu.reset()
     this.lastViewers = 0
     for (const peer of this.peers.values()) {
       this.removeStreamFrom(peer, stream)
       peer.outbound = undefined
       peer.outHistory = []
+      peer.fpsSend.reset()
     }
     for (const t of stream.getTracks()) t.stop()
   }
@@ -520,7 +530,9 @@ export class PeerManager {
         this.removeStreamFrom(peer, stream)
         peer.outbound = undefined
         peer.outHistory = []
+        peer.fpsSend.reset()
       }
+      this.fpsSfu.reset()
       this.limited.reset()
       this.lastViewers = 0
       if (this.auto) {
@@ -559,11 +571,21 @@ export class PeerManager {
     let s = sample
     // mesma regra da malha: "bandwidth" com a estimativa folgada é só o encoder subindo
     if (s?.limitation === 'bandwidth' && s.availableKbps !== undefined && capKbps > 0 && s.availableKbps >= 0.75 * capKbps) s = { ...s, limitation: 'none' }
+    if (this.preset.hint !== 'detail') {
+      const level = auto.level(SFU_VIEWER)
+      const target = level !== undefined ? autoLevelPreset(level, auto.ladder).fps : this.preset.fps
+      this.logFpsDrop(
+        this.fpsSfu.update(
+          s ? { side: 'send', target, sentFps: s.fps, capturedFps: s.capturedFps, kbps: s.kbps, limitation: s.limitation, encoder: s.encoder, hardware: s.hardware } : undefined,
+          now
+        )
+      )
+    } else this.fpsSfu.reset()
     const r = auto.tick(s ? new Map([[SFU_VIEWER, s]]) : new Map(), now, () => capKbps)
     for (const c of r.changes) {
       this.log.push({
         kind: c.dir === 'up' ? 'up' : 'down',
-        text: `Qualidade para o servidor ${c.dir === 'up' ? 'subiu' : 'desceu'} para ${AUTO_LADDER[c.level].label}: ${REASON_TEXT[c.reason]}`
+        text: `Qualidade para o servidor ${c.dir === 'up' ? 'subiu' : 'desceu'} para ${auto.ladder[c.level].label}: ${REASON_TEXT[c.reason]}`
       })
     }
     if (r.captureChanged) this.applyCapture(video)
@@ -574,7 +596,7 @@ export class PeerManager {
    * O que o simulcast precisa saber: altura da captura (já no nível atual) e a camada de cima.
    * Calculado do preset e do tamanho nativo, sem esperar a captura terminar de se ajustar.
    */
-  sfuTopParams(): { capturedHeight: number; top: { height: number; fps: number; bitrate: number } } | undefined {
+  sfuTopParams(): { capturedHeight: number; top: { height: number; fps: number; bitrate: number; degradation: RTCDegradationPreference } } | undefined {
     const video = this.screenStream?.getVideoTracks()[0]
     const preset = this.preset
     if (!video || !preset) return undefined
@@ -583,14 +605,19 @@ export class PeerManager {
     const capturedWidth = native.width && native.height ? (native.width * capturedHeight) / native.height : undefined
     return {
       capturedHeight,
-      top: { height: preset.height, fps: preset.fps, bitrate: bitrateFor(preset, 1, pixelScale(preset, capturedWidth, capturedHeight)) }
+      top: {
+        height: preset.height,
+        fps: preset.fps,
+        bitrate: bitrateFor(preset, 1, pixelScale(preset, capturedWidth, capturedHeight)),
+        degradation: degradationFor(preset)
+      }
     }
   }
 
   /** Chave do que o simulcast usa (preset e tamanho): muda quando as camadas precisam ser reaplicadas. */
   sfuKey(): string {
     const p = this.sfuTopParams()
-    return p ? `${p.capturedHeight}|${p.top.height}|${p.top.fps}|${p.top.bitrate}` : ''
+    return p ? `${p.capturedHeight}|${p.top.height}|${p.top.fps}|${p.top.bitrate}|${p.top.degradation}` : ''
   }
 
   /**
@@ -619,7 +646,7 @@ export class PeerManager {
     const video = this.screenStream?.getVideoTracks()[0]
     if (!video) return undefined
     const preset = this.preset
-    const levelLabel = this.auto ? AUTO_LADDER[this.auto.captureLevel()].label : preset ? `${preset.height}p ${preset.fps}` : ''
+    const levelLabel = this.auto ? this.auto.ladder[this.auto.captureLevel()].label : preset ? `${preset.height}p ${preset.fps}` : ''
     const route: ScreenRoute = this.screenMesh ? 'mesh' : 'sfu'
     const viewers = [...this.peers.values()]
       .filter((p) => p.senders.has(video.id))
@@ -657,10 +684,12 @@ export class PeerManager {
     // 1440p só se a tela nativa tiver 1440 de altura ou mais
     const nativeH = video ? nativeSize(video).height ?? 0 : 0
     const maxLevel = nativeH >= 1440 ? 4 : 3
-    if (this.auto) this.auto.setMaxLevel(maxLevel)
-    else this.auto = new PerViewerAuto({ maxLevel })
+    const ladder = ladderOfPreset(preset)
+    // trocar entre fluidez e nitidez com a tela aberta: recomeça o automático na escada nova
+    if (this.auto && this.auto.ladder === ladder) this.auto.setMaxLevel(maxLevel)
+    else this.auto = new PerViewerAuto({ maxLevel, ladder })
     this.lastTickAt = 0
-    this.preset = autoLevelPreset(this.auto.captureLevel())
+    this.preset = autoLevelPreset(this.auto.captureLevel(), this.auto.ladder)
   }
 
   private signal(to: string, payload: SignalPayload): void {
@@ -710,7 +739,7 @@ export class PeerManager {
     const level = this.auto?.level(peer.id)
     if (level !== undefined) {
       // automático: cada espectador no seu nível, reduzido a partir da trilha capturada (que está no maior nível)
-      const p = viewerSendParams(level, this.peers.size, video.getSettings())
+      const p = viewerSendParams(level, this.peers.size, video.getSettings(), this.auto?.ladder)
       enc.maxBitrate = p.maxBitrate
       enc.maxFramerate = p.maxFramerate
       enc.scaleResolutionDownBy = p.scaleResolutionDownBy
@@ -721,8 +750,9 @@ export class PeerManager {
       enc.maxFramerate = preset.fps
       if (enc.scaleResolutionDownBy !== undefined && enc.scaleResolutionDownBy !== 1) enc.scaleResolutionDownBy = 1
     }
-    // 'balanced' em vez de 'maintain-framerate': quando a banda aperta, não derruba só a resolução (o que deixa tudo borrado)
-    params.degradationPreference = preset.hint === 'detail' ? 'maintain-resolution' : 'balanced'
+    // 60 fps: o fps é sagrado e a resolução cede; movimento com menos fps: equilibrado; texto: mantém a resolução
+    params.degradationPreference = degradationFor(level !== undefined ? autoLevelPreset(level, this.auto?.ladder) : preset)
+    prioritizeScreen(enc)
     try {
       await sender.setParameters(params)
     } catch (err) {
@@ -778,6 +808,12 @@ export class PeerManager {
   }
 
   private watchReceive(peer: Peer, inbound: InboundStats, now: number): void {
+    // a queda no PC de quem assiste (o resto, quem envia já avisa); o alvo vem do nível que a pessoa anunciou
+    const target = targetFromLabel(peer.state.send?.lvl)
+    this.logFpsDrop(
+      target ? peer.fpsRecv.update({ side: 'recv', target, recvFps: inbound.fps, kbps: inbound.kbps, droppedFps: inbound.droppedFps }, now) : undefined,
+      peer.name
+    )
     if (inbound.lossPct !== undefined && inbound.lossPct >= LOSS_EVENT_PCT)
       this.note(peer, 'perda', 'perda', `Perdendo pacotes da tela de ${peer.name} (${fmtPct(inbound.lossPct)})`, now)
     if (inbound.freezes > 0) this.note(peer, 'travada', 'travada', `A imagem de ${peer.name} travou`, now)
@@ -800,7 +836,28 @@ export class PeerManager {
     else if (route === 'direto') this.note(peer, 'rota', 'direto', `A conexão com ${peer.name} é direta`, now)
   }
 
+  /** Diário: de onde o fps se perde no que eu envio para essa pessoa. */
+  private watchSendFps(peer: Peer, out: OutboundStats, now: number): void {
+    const preset = this.preset
+    if (!preset || preset.hint === 'detail') {
+      peer.fpsSend.reset()
+      return
+    }
+    const level = this.auto?.level(peer.id)
+    const target = level !== undefined ? autoLevelPreset(level, this.auto?.ladder).fps : preset.fps
+    const ev = peer.fpsSend.update(
+      { side: 'send', target, sentFps: out.fps, capturedFps: out.capturedFps, kbps: out.kbps, limitation: out.limitation, encoder: out.encoder, hardware: out.hardware },
+      now
+    )
+    this.logFpsDrop(ev, peer.name)
+  }
+
+  private logFpsDrop(ev: FpsDropEvent | undefined, who?: string): void {
+    if (ev) this.log.push({ kind: ev.kind, text: ev.text, ...(who ? { who } : {}) })
+  }
+
   private watchSend(peer: Peer, out: OutboundStats, now: number): void {
+    this.watchSendFps(peer, out, now)
     if (out.limitation === 'cpu') this.note(peer, 'cpu', 'cpu', 'Seu PC está no limite para codificar a tela', now)
     else if (out.limitation === 'bandwidth') this.note(peer, 'banda', 'banda', `Seu upload para ${peer.name} está no limite`, now)
   }
@@ -847,6 +904,8 @@ export class PeerManager {
         peer.outHistory = []
         peer.inbound = undefined
         peer.outbound = undefined
+        peer.fpsSend.reset()
+        peer.fpsRecv.reset()
       }
 
       const res = readStats(rows, peer.counters, now, {
@@ -907,7 +966,7 @@ export class PeerManager {
   private capKbps(video: MediaStreamTrack, peerId: string): number | undefined {
     if (!this.preset) return undefined
     const level = this.auto?.level(peerId)
-    if (level !== undefined) return viewerSendParams(level, this.peers.size, video.getSettings()).maxBitrate / 1000
+    if (level !== undefined) return viewerSendParams(level, this.peers.size, video.getSettings(), this.auto?.ladder).maxBitrate / 1000
     const { width, height } = video.getSettings()
     return bitrateFor(this.preset, this.peers.size, pixelScale(this.preset, width, height)) / 1000
   }
@@ -928,7 +987,7 @@ export class PeerManager {
   /** Põe a trilha capturada no maior nível dos espectadores e reaplica os parâmetros de todos os senders. */
   private applyCapture(video: MediaStreamTrack): void {
     if (!this.auto) return
-    const preset = autoLevelPreset(this.auto.captureLevel())
+    const preset = autoLevelPreset(this.auto.captureLevel(), this.auto.ladder)
     this.preset = preset
     void applyQuality(video, preset).then(() => this.reapplyAllBitrates())
   }
@@ -944,7 +1003,7 @@ export class PeerManager {
     let mbps: number
     if (this.auto) {
       let bps = 0
-      for (const id of this.auto.ids()) bps += viewerSendParams(this.auto.level(id) ?? 0, this.peers.size, video.getSettings()).maxBitrate
+      for (const id of this.auto.ids()) bps += viewerSendParams(this.auto.level(id) ?? 0, this.peers.size, video.getSettings(), this.auto.ladder).maxBitrate
       mbps = bps / 1_000_000
     } else mbps = uploadEstimateMbps(this.preset, n)
     this.log.push({ kind: 'info', text: `${n === 1 ? '1 pessoa assistindo' : `${n} pessoas assistindo`}: envio de ~${Math.round(mbps)} Mbps` })
@@ -964,7 +1023,7 @@ export class PeerManager {
       this.log.push({
         kind: c.dir === 'up' ? 'up' : 'down',
         who,
-        text: `Qualidade para ${who} ${c.dir === 'up' ? 'subiu' : 'desceu'} para ${AUTO_LADDER[c.level].label}: ${REASON_TEXT[c.reason]}`
+        text: `Qualidade para ${who} ${c.dir === 'up' ? 'subiu' : 'desceu'} para ${auto.ladder[c.level].label}: ${REASON_TEXT[c.reason]}`
       })
     }
     if (r.captureChanged) this.applyCapture(video)

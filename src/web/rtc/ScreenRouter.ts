@@ -44,8 +44,8 @@ export const realClock: Clock = {
 
 /** O que o roteador usa da conexão com o SFU (SfuLink implementa). */
 export interface RouterLink {
-  publish(stream: MediaStream, encodings: RTCRtpEncodingParameters[]): Promise<Rid[]>
-  setEncodings(encodings: RTCRtpEncodingParameters[]): Promise<void>
+  publish(stream: MediaStream, encodings: RTCRtpEncodingParameters[], degradation?: RTCDegradationPreference): Promise<Rid[]>
+  setEncodings(encodings: RTCRtpEncodingParameters[], degradation?: RTCDegradationPreference): Promise<void>
   unpublish(): Promise<void>
   subscribe(from: string, streamId: string, rid: Rid): Promise<MediaStream>
   firstFrame(from: string): Promise<void>
@@ -65,7 +65,7 @@ export interface RouterManager {
   captureLevel(): number | undefined
   setScreenMesh(enabled: boolean): void
   tickSfu(sample: AutoSample | undefined): boolean
-  sfuTopParams(): { capturedHeight: number; top: { height: number; fps: number; bitrate: number } } | undefined
+  sfuTopParams(): { capturedHeight: number; top: { height: number; fps: number; bitrate: number; degradation?: RTCDegradationPreference } } | undefined
   sfuKey(): string
   /** as pessoas do meu canal; `screen` é a tela que chega pela malha */
   views(): Array<{ id: string; name: string; state: PeerState; screen?: MediaStream }>
@@ -304,7 +304,7 @@ export class ScreenRouter {
     if (!p) return
     this.lastKey = key
     try {
-      await this.link.setEncodings(sendEncodings(p.capturedHeight, p.top))
+      await this.link.setEncodings(sendEncodings(p.capturedHeight, p.top), p.top.degradation)
     } catch (err) {
       console.warn('[sfu] camadas', err)
     }
@@ -324,7 +324,7 @@ export class ScreenRouter {
     this.busy = true
     this.pendingFailure = undefined
     try {
-      await this.link.publish(stream, sendEncodings(params.capturedHeight, params.top))
+      await this.link.publish(stream, sendEncodings(params.capturedHeight, params.top), params.top.degradation)
       this.published = true
       this.lastKey = this.m.sfuKey()
       this.assertAlive(streamId)

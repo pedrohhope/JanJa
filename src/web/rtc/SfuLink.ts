@@ -8,6 +8,7 @@
 import type { ClientMessage, ServerMessage } from '../../shared/protocol'
 import type { Rid, Sdp, SfuErrorCode } from '../../shared/sfu'
 import type { AutoSample } from './autoQuality'
+import { prioritizeScreen } from './quality'
 import { readStats, type Counters, type StatRow } from './stats'
 
 export const SFU_ICE: RTCConfiguration = { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }], bundlePolicy: 'max-bundle' }
@@ -233,7 +234,7 @@ export class SfuLink {
   // ---------- publicar (a minha tela) ----------
 
   /** Publica vídeo (com simulcast) e áudio da tela. Devolve as camadas publicadas. */
-  publish(stream: MediaStream, encodings: RTCRtpEncodingParameters[]): Promise<Rid[]> {
+  publish(stream: MediaStream, encodings: RTCRtpEncodingParameters[], degradation?: RTCDegradationPreference): Promise<Rid[]> {
     return this.run(true, async (pc) => {
       if (this.published) await this.closePublished(pc)
       const video = stream.getVideoTracks()[0]
@@ -258,12 +259,25 @@ export class SfuLink {
       await pc.setRemoteDescription(reply.sdp)
       const rids = encodings.flatMap((e) => (e.rid ? [e.rid as Rid] : []))
       this.published = { streamId: stream.id, video: tv, audio: ta, mids: tracks.map((t) => t.mid), rids }
+      if (degradation) await this.applyDegradation(tv.sender, degradation)
       return rids
     })
   }
 
+  /** Quando falta banda ou CPU: mantém o fps (60 fps), a resolução ou equilibra. O navegador pode recusar. */
+  private async applyDegradation(sender: RTCRtpSender, degradation: RTCDegradationPreference): Promise<void> {
+    try {
+      const params = sender.getParameters()
+      if (!params.encodings || params.encodings.length === 0) return
+      params.degradationPreference = degradation
+      await sender.setParameters(params)
+    } catch (err) {
+      console.warn('[sfu] degradationPreference', err)
+    }
+  }
+
   /** Muda só a camada `a` (a melhor): o automático usa isto. */
-  async setTopLayer(p: { maxBitrate: number; maxFramerate: number; scaleResolutionDownBy: number }): Promise<void> {
+  async setTopLayer(p: { maxBitrate: number; maxFramerate: number; scaleResolutionDownBy: number; degradation?: RTCDegradationPreference }): Promise<void> {
     const sender = this.published?.video.sender
     if (!sender) return
     const params = sender.getParameters()
@@ -272,6 +286,8 @@ export class SfuLink {
     enc.maxBitrate = p.maxBitrate
     enc.maxFramerate = p.maxFramerate
     enc.scaleResolutionDownBy = p.scaleResolutionDownBy
+    prioritizeScreen(enc)
+    if (p.degradation) params.degradationPreference = p.degradation
     await sender.setParameters(params)
   }
 
@@ -279,7 +295,7 @@ export class SfuLink {
    * Reaplica todas as camadas (quando a captura muda de tamanho as reduções de `b` e `c` mudam junto).
    * Camada que não está na lista fica desativada.
    */
-  async setEncodings(wanted: RTCRtpEncodingParameters[]): Promise<void> {
+  async setEncodings(wanted: RTCRtpEncodingParameters[], degradation?: RTCDegradationPreference): Promise<void> {
     const pub = this.published
     const sender = pub?.video.sender
     if (!pub || !sender) return
@@ -296,7 +312,9 @@ export class SfuLink {
       enc.maxBitrate = w.maxBitrate
       enc.maxFramerate = w.maxFramerate
       enc.scaleResolutionDownBy = w.scaleResolutionDownBy
+      prioritizeScreen(enc)
     }
+    if (degradation) params.degradationPreference = degradation
     await sender.setParameters(params)
     pub.rids = wanted.flatMap((e) => (e.rid ? [e.rid as Rid] : []))
   }
@@ -394,7 +412,16 @@ export class SfuLink {
     this.sendCounters = res.counters
     const o = res.outbound
     if (!o) return undefined
-    return { availableKbps: o.availableKbps, lossPct: o.lossPct, limitation: o.limitation, fps: o.fps, kbps: o.kbps }
+    return {
+      availableKbps: o.availableKbps,
+      lossPct: o.lossPct,
+      limitation: o.limitation,
+      fps: o.fps,
+      kbps: o.kbps,
+      capturedFps: o.capturedFps,
+      encoder: o.encoder,
+      hardware: o.hardware
+    }
   }
 
   /** Soma o que chegou do SFU desde a última vez e avisa a sala (só se > 0). */

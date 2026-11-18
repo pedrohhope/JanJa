@@ -1056,7 +1056,7 @@ button.icon-btn.sig-btn.open { --bg: var(--rug); --bg-h: var(--rug); --bd: var(-
 .sig-view-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .sig-kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
 .sig-kv dt { font-size: 11.5px; color: var(--dust); line-height: 1.2; }
-.sig-kv dd { margin: 0; font-size: 14px; font-weight: 600; }
+.sig-kv dd { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .sig-kv dd.t-ok { color: var(--on); }
 .sig-kv dd.t-warn { color: var(--lamp); }
 .sig-kv dd.t-bad { color: var(--off); }
