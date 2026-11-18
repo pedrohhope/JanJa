@@ -7,6 +7,8 @@ export interface QualityPreset {
   /** bitrate alvo para 1 espectador, em bps */
   bitrate: number
   hint: 'detail' | 'motion'
+  /** frase curta que explica a escolha (só os automáticos usam) */
+  sub?: string
 }
 
 /**
@@ -16,19 +18,24 @@ export interface QualityPreset {
  */
 export const PRESETS: QualityPreset[] = [
   { id: 'texto', label: 'Texto e código (até 1080p, 15 fps)', width: 1920, height: 1080, fps: 15, bitrate: 4_000_000, hint: 'detail' },
-  { id: 'nitido', label: 'Máxima nitidez (até 1440p, 30 fps)', width: 2560, height: 1440, fps: 30, bitrate: 12_000_000, hint: 'detail' },
-  { id: 'equilibrado', label: 'Equilibrado (até 720p, 30 fps)', width: 1280, height: 720, fps: 30, bitrate: 3_000_000, hint: 'motion' },
-  { id: 'jogo', label: 'Jogo e vídeo (até 1080p, 30 fps)', width: 1920, height: 1080, fps: 30, bitrate: 8_000_000, hint: 'motion' },
-  { id: 'jogo60', label: 'Jogo fluido (até 1080p, 60 fps)', width: 1920, height: 1080, fps: 60, bitrate: 12_000_000, hint: 'motion' }
+  // grade de resolução × fps (ids antigos mantidos: equilibrado, jogo, jogo60 e nitido ficam salvos nas preferências)
+  { id: 'equilibrado', label: '720p 30 fps', width: 1280, height: 720, fps: 30, bitrate: 3_000_000, hint: 'motion' },
+  { id: '720p60', label: '720p 60 fps', width: 1280, height: 720, fps: 60, bitrate: 4_500_000, hint: 'motion' },
+  { id: 'jogo', label: '1080p 30 fps', width: 1920, height: 1080, fps: 30, bitrate: 8_000_000, hint: 'motion' },
+  { id: 'jogo60', label: '1080p 60 fps', width: 1920, height: 1080, fps: 60, bitrate: 12_000_000, hint: 'motion' },
+  { id: 'nitido', label: '1440p 30 fps', width: 2560, height: 1440, fps: 30, bitrate: 12_000_000, hint: 'motion' },
+  { id: '1440p60', label: '1440p 60 fps', width: 2560, height: 1440, fps: 60, bitrate: 18_000_000, hint: 'motion' }
 ]
 
 /**
  * Modo automático: a qualidade se ajusta sozinha (veja autoQuality.ts). Estes números só servem para a captura
  * (pede até 60 fps) e para estimativas; o preset de verdade é montado do nível atual.
+ * Fluidez é o padrão: mantém 60 fps e deixa a resolução ceder. Nitidez deixa o fps ceder.
  */
 export const AUTO_PRESET: QualityPreset = {
   id: 'auto',
-  label: 'Automático (se ajusta à internet)',
+  label: 'Automático (fluidez)',
+  sub: 'Mantém 60 fps; a resolução é que cede',
   width: 1920,
   height: 1080,
   fps: 60,
@@ -36,7 +43,33 @@ export const AUTO_PRESET: QualityPreset = {
   hint: 'motion'
 }
 
-export const isAuto = (p: QualityPreset): boolean => p.id === 'auto'
+export const AUTO_SHARP_PRESET: QualityPreset = {
+  id: 'auto-nitidez',
+  label: 'Automático (nitidez)',
+  sub: 'Para texto e código; o fps é que cede',
+  width: 1920,
+  height: 1080,
+  fps: 60,
+  bitrate: 5_000_000,
+  hint: 'motion'
+}
+
+export const isAuto = (p: Pick<QualityPreset, 'id'>): boolean => p.id === AUTO_PRESET.id || p.id === AUTO_SHARP_PRESET.id
+
+/**
+ * O que o navegador faz quando falta banda ou CPU: 'detail' mantém a resolução; 60 fps (ou perto) mantém os quadros
+ * (a resolução é que cede); movimento com menos fps deixa o navegador equilibrar. Vale para a malha e para o SFU.
+ */
+export function degradationFor(p: Pick<QualityPreset, 'hint' | 'fps'>): RTCDegradationPreference {
+  if (p.hint === 'detail') return 'maintain-resolution'
+  return p.fps >= 50 ? 'maintain-framerate' : 'balanced'
+}
+
+/** A tela vai na frente da câmera e do resto na fila de envio e na da rede (o navegador pode ignorar). */
+export function prioritizeScreen(enc: RTCRtpEncodingParameters): void {
+  enc.priority = 'high'
+  enc.networkPriority = 'high'
+}
 
 /** Pedido inicial ao navegador: só o fps; a tela vem no tamanho nativo e depois é reduzida por fitConstraints. */
 export function captureConstraints(preset: QualityPreset): MediaTrackConstraints {
@@ -98,11 +131,12 @@ export function pixelScale(preset: QualityPreset, width?: number, height?: numbe
   return Math.min(1.8, Math.max(0.5, (width * height) / base))
 }
 
-/** 1080p por padrão: 720p esticado numa tela 1080p é o que mais parece "borrado" para quem assiste */
-export const DEFAULT_PRESET = PRESETS[2]
+/** preset de reserva quando o id salvo não existe mais (o padrão de verdade é o automático) */
+export const DEFAULT_PRESET = PRESETS.find((p) => p.id === 'equilibrado')!
 
 export function presetById(id: string): QualityPreset {
-  if (id === 'auto') return AUTO_PRESET
+  if (id === AUTO_PRESET.id) return AUTO_PRESET
+  if (id === AUTO_SHARP_PRESET.id) return AUTO_SHARP_PRESET
   return PRESETS.find((p) => p.id === id) ?? DEFAULT_PRESET
 }
 

@@ -74,6 +74,11 @@ describe('camadas', () => {
     expect(enc[0].maxFramerate).toBe(60)
   })
 
+  it('todas as camadas da tela saem com prioridade alta no envio e na rede', () => {
+    const enc = sendEncodings(1080, { height: 1080, fps: 60, bitrate: 7_000_000 })
+    expect(enc.every((e) => e.priority === 'high' && e.networkPriority === 'high')).toBe(true)
+  })
+
   it('tira camadas que ficariam do tamanho da de cima', () => {
     expect(sendEncodings(720, { height: 1080, fps: 30, bitrate: 3_000_000 }).map((e) => e.rid)).toEqual(['a', 'c'])
     expect(sendEncodings(360, { height: 720, fps: 30, bitrate: 1_000_000 }).map((e) => e.rid)).toEqual(['a'])

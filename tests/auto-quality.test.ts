@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { AUTO_LADDER, AUTO_START, AutoQuality, type AutoSample } from '../src/web/rtc/autoQuality'
+import {
+  AUTO_LADDER,
+  AUTO_START,
+  AutoQuality,
+  FLUIDEZ_LADDER,
+  NITIDEZ_LADDER,
+  autoLevelPreset,
+  ladderFor,
+  ladderOfPreset,
+  type AutoSample
+} from '../src/web/rtc/autoQuality'
 
 const CAP = 5000
 const good = (extra: Partial<AutoSample> = {}): AutoSample => ({ availableKbps: 6000, lossPct: 0, limitation: 'none', fps: 60, kbps: 4000, ...extra })
@@ -16,10 +26,61 @@ function run(q: AutoQuality, n: number, t: number, s: AutoSample[], cap = CAP) {
 }
 
 describe('qualidade automática', () => {
-  it('escada e nível inicial', () => {
+  it('escada e nível inicial (fluidez é o padrão: começa em 720p 60, não em 1080p 30)', () => {
+    expect(AUTO_LADDER).toBe(FLUIDEZ_LADDER)
     expect(AUTO_LADDER).toHaveLength(5)
-    expect(AUTO_LADDER[AUTO_START].id).toBe('1080p30')
+    expect(AUTO_LADDER[AUTO_START].id).toBe('720p60')
     expect(new AutoQuality().level).toBe(AUTO_START)
+  })
+
+  it('as duas escadas têm o mesmo tamanho e os mesmos extremos (índices compatíveis)', () => {
+    expect(FLUIDEZ_LADDER.map((l) => l.id)).toEqual(['480p30', '720p30', '720p60', '1080p60', '1440p60'])
+    expect(NITIDEZ_LADDER.map((l) => l.id)).toEqual(['480p30', '720p30', '1080p30', '1080p60', '1440p60'])
+    expect(FLUIDEZ_LADDER.map((l) => l.bitrate)).toEqual([1_200_000, 2_500_000, 4_000_000, 9_000_000, 14_000_000])
+    expect(NITIDEZ_LADDER.map((l) => l.bitrate)).toEqual([1_200_000, 2_500_000, 5_000_000, 9_000_000, 14_000_000])
+    // nível 1 (limite do roteador) é 720p 30 nas duas
+    expect(FLUIDEZ_LADDER[1]).toEqual(NITIDEZ_LADDER[1])
+    expect(ladderFor()).toBe(FLUIDEZ_LADDER)
+    expect(ladderFor('nitidez')).toBe(NITIDEZ_LADDER)
+    expect(ladderOfPreset({ id: 'auto-nitidez' })).toBe(NITIDEZ_LADDER)
+    expect(ladderOfPreset({ id: 'auto' })).toBe(FLUIDEZ_LADDER)
+    expect(autoLevelPreset(3).id).toBe('auto')
+    expect(autoLevelPreset(2, NITIDEZ_LADDER)).toMatchObject({ id: 'auto-nitidez', fps: 30, height: 1080 })
+  })
+
+  it('fluidez: de 1080p 60 desce para 720p 60 (nunca direto para 30 fps) e a rampa só passa para 30 fps na base', () => {
+    const q = new AutoQuality({ start: 3 })
+    const r = run(q, 6, 0, [good({ limitation: 'cpu' })])
+    expect(r.out.find((d) => d.changed)).toMatchObject({ dir: 'down', level: 2 })
+    expect(FLUIDEZ_LADDER[2].fps).toBe(60)
+    // todo degrau a partir do 720p 60 mantém 60 fps
+    expect(FLUIDEZ_LADDER.slice(2).every((l) => l.fps === 60)).toBe(true)
+  })
+
+  it('fps baixo no 1080p 60 (fluidez) cai para 720p 60, que ainda é 60 fps', () => {
+    const q = new AutoQuality({ start: 3 })
+    const { out } = run(q, 12, 0, [good({ fps: 30, limitation: 'other' })])
+    const first = out.find((d) => d.changed)
+    expect(first).toMatchObject({ dir: 'down', reason: 'fps', level: 2 })
+    expect(q.levels[first!.level].fps).toBe(60)
+  })
+
+  it('nitidez continua igual: de 1080p 60 desce para 1080p 30', () => {
+    const q = new AutoQuality({ start: 3, ladder: NITIDEZ_LADDER })
+    const r = run(q, 6, 0, [good({ limitation: 'cpu' })])
+    expect(r.out.find((d) => d.changed)).toMatchObject({ dir: 'down', level: 2 })
+    expect(q.levels[2].id).toBe('1080p30')
+    expect(new AutoQuality({ ladder: NITIDEZ_LADDER }).levels[AUTO_START].id).toBe('1080p30')
+  })
+
+  it('a regra de fps usa o fps do nível da escada em uso', () => {
+    // o limite é 60% do fps do nível: 40 fps está ok no 720p 60 (36), 30 fps é baixo ali, mas ok no 1080p 30 da nitidez (18)
+    const fluid = new AutoQuality({ start: 2 })
+    expect(run(fluid, 12, 0, [good({ fps: 40, limitation: 'other' })]).out.some((d) => d.changed)).toBe(false)
+    const fluid2 = new AutoQuality({ start: 2 })
+    expect(run(fluid2, 12, 0, [good({ fps: 30, limitation: 'other' })]).out.some((d) => d.reason === 'fps')).toBe(true)
+    const sharp = new AutoQuality({ start: 2, ladder: NITIDEZ_LADDER })
+    expect(run(sharp, 12, 0, [good({ fps: 30, limitation: 'other' })]).out.some((d) => d.reason === 'fps')).toBe(false)
   })
 
   it('sobe gradualmente com banda sobrando (5 ticks bons por degrau) e para no máximo', () => {

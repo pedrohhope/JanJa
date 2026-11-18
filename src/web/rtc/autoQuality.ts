@@ -14,7 +14,20 @@ export interface AutoLevel {
   bitrate: number
 }
 
-export const AUTO_LADDER: AutoLevel[] = [
+/**
+ * Duas escadas de 5 níveis, com índices compatíveis (AUTO_START e LIMITED_MAX_LEVEL valem para as duas).
+ * - fluidez (padrão): o fps fica em 60 o máximo possível e a resolução é que cede.
+ * - nitidez: a resolução fica alta e o fps é que cede (texto, código).
+ */
+export const FLUIDEZ_LADDER: readonly AutoLevel[] = [
+  { id: '480p30', label: '480p 30', width: 854, height: 480, fps: 30, bitrate: 1_200_000 },
+  { id: '720p30', label: '720p 30', width: 1280, height: 720, fps: 30, bitrate: 2_500_000 },
+  { id: '720p60', label: '720p 60', width: 1280, height: 720, fps: 60, bitrate: 4_000_000 },
+  { id: '1080p60', label: '1080p 60', width: 1920, height: 1080, fps: 60, bitrate: 9_000_000 },
+  { id: '1440p60', label: '1440p 60', width: 2560, height: 1440, fps: 60, bitrate: 14_000_000 }
+]
+
+export const NITIDEZ_LADDER: readonly AutoLevel[] = [
   { id: '480p30', label: '480p 30', width: 854, height: 480, fps: 30, bitrate: 1_200_000 },
   { id: '720p30', label: '720p 30', width: 1280, height: 720, fps: 30, bitrate: 2_500_000 },
   { id: '1080p30', label: '1080p 30', width: 1920, height: 1080, fps: 30, bitrate: 5_000_000 },
@@ -22,13 +35,28 @@ export const AUTO_LADDER: AutoLevel[] = [
   { id: '1440p60', label: '1440p 60', width: 2560, height: 1440, fps: 60, bitrate: 14_000_000 }
 ]
 
-/** Nível inicial: 1080p 30. */
+/** A escada padrão (fluidez); mantida por compatibilidade. */
+export const AUTO_LADDER = FLUIDEZ_LADDER
+
+export type AutoPriority = 'fluidez' | 'nitidez'
+
+export function ladderFor(priority: AutoPriority = 'fluidez'): readonly AutoLevel[] {
+  return priority === 'nitidez' ? NITIDEZ_LADDER : FLUIDEZ_LADDER
+}
+
+/** Escada do preset automático (qualquer outro preset cai na fluidez). */
+export function ladderOfPreset(preset: Pick<QualityPreset, 'id'>): readonly AutoLevel[] {
+  return ladderFor(preset.id === 'auto-nitidez' ? 'nitidez' : 'fluidez')
+}
+
+/** Nível inicial: 720p 60 na fluidez, 1080p 30 na nitidez. */
 export const AUTO_START = 2
 
 /** Preset efetivo (usado por applyQuality, bitrate e codecs) montado de um nível da escada. */
-export function autoLevelPreset(level: number): QualityPreset {
-  const l = AUTO_LADDER[clamp(level, 0, AUTO_LADDER.length - 1)]
-  return { id: 'auto', label: l.label, width: l.width, height: l.height, fps: l.fps, bitrate: l.bitrate, hint: 'motion' }
+export function autoLevelPreset(level: number, ladder: readonly AutoLevel[] = AUTO_LADDER): QualityPreset {
+  const l = ladder[clamp(level, 0, ladder.length - 1)]
+  const id = ladder === NITIDEZ_LADDER ? 'auto-nitidez' : 'auto'
+  return { id, label: l.label, width: l.width, height: l.height, fps: l.fps, bitrate: l.bitrate, hint: 'motion' }
 }
 
 export interface AutoSample {
@@ -37,6 +65,10 @@ export interface AutoSample {
   limitation: Limitation
   fps?: number
   kbps?: number
+  /** só diagnóstico (não entra na decisão): fps da captura e encoder em uso */
+  capturedFps?: number
+  encoder?: string
+  hardware?: boolean
 }
 
 export type AutoReason = 'folga' | 'perda' | 'banda' | 'cpu' | 'fps'
@@ -67,6 +99,7 @@ const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.m
 const DOWN_PRIORITY: AutoReason[] = ['cpu', 'perda', 'banda', 'fps']
 
 export class AutoQuality {
+  private readonly ladder: readonly AutoLevel[]
   private lvl: number
   private max: number
   private badTicks = 0
@@ -77,9 +110,14 @@ export class AutoQuality {
   private levelSince?: number
   private lastUpAt?: number
 
-  constructor(opts: { start?: number; maxLevel?: number } = {}) {
-    this.max = clamp(opts.maxLevel ?? AUTO_LADDER.length - 1, 0, AUTO_LADDER.length - 1)
+  constructor(opts: { start?: number; maxLevel?: number; ladder?: readonly AutoLevel[] } = {}) {
+    this.ladder = opts.ladder ?? AUTO_LADDER
+    this.max = clamp(opts.maxLevel ?? this.ladder.length - 1, 0, this.ladder.length - 1)
     this.lvl = clamp(opts.start ?? AUTO_START, 0, this.max)
+  }
+
+  get levels(): readonly AutoLevel[] {
+    return this.ladder
   }
 
   get level(): number {
@@ -87,7 +125,7 @@ export class AutoQuality {
   }
 
   setMaxLevel(max: number): void {
-    this.max = clamp(max, 0, AUTO_LADDER.length - 1)
+    this.max = clamp(max, 0, this.ladder.length - 1)
     if (this.lvl > this.max) {
       this.lvl = this.max
       this.clearCounters()
@@ -119,7 +157,7 @@ export class AutoQuality {
     // estável por 120 s no mesmo nível: esquece o castigo
     if (now - this.levelSince >= STABLE_MS) this.backoff = BACKOFF_START
 
-    const levelFps = AUTO_LADDER[this.lvl].fps
+    const levelFps = this.ladder[this.lvl].fps
     const settled = now - this.levelSince >= LEVEL_GRACE_MS
     const reasons = new Set<AutoReason>()
     let allGood = true

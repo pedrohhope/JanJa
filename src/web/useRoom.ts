@@ -11,7 +11,7 @@ import {
 } from '../shared/protocol'
 import type { RoutePref, ScreenRoute, SfuInfo } from '../shared/sfu'
 import { gameReducer, initialGameState, isGameMsg } from './game/state'
-import { AUTO_START, autoLevelPreset } from './rtc/autoQuality'
+import { AUTO_START, autoLevelPreset, ladderOfPreset } from './rtc/autoQuality'
 import type { DiagEvent, SendDiag } from './rtc/diag'
 import { PeerManager, type PeerView } from './rtc/PeerManager'
 import { ScreenRouter } from './rtc/ScreenRouter'
@@ -572,7 +572,7 @@ export function useRoom(roomId: string, name: string, hostKey?: string) {
       if (video) {
         // veio no tamanho nativo: reduz para o preset mantendo a proporção (ultrawide continua 21:9)
         // no automático começa no nível inicial; o PeerManager decide o resto
-        await applyQuality(video, isAuto(preset) ? autoLevelPreset(AUTO_START) : preset)
+        await applyQuality(video, isAuto(preset) ? autoLevelPreset(AUTO_START, ladderOfPreset(preset)) : preset)
         video.addEventListener('ended', () => stopShare(), { once: true })
       }
       // anuncia antes das tracks chegarem, para o receptor classificar o áudio da tela

@@ -3,13 +3,13 @@
  * `AutoQuality`, então uma conexão ruim só rebaixa quem está nela. Limite de CPU é do PC de quem
  * compartilha: derruba o teto de todos e ele volta a subir aos poucos. Tudo puro: o tempo entra por parâmetro.
  */
-import { AUTO_LADDER, AUTO_START, AutoQuality, autoLevelPreset, type AutoReason, type AutoSample } from './autoQuality'
-import { bitrateFor, pixelScale } from './quality'
+import { AUTO_LADDER, AUTO_START, AutoQuality, autoLevelPreset, type AutoLevel, type AutoReason, type AutoSample } from './autoQuality'
+import { bitrateFor, degradationFor, pixelScale } from './quality'
 
 /** sem CPU limitada por tanto tempo, o teto sobe +1 nível */
 export const CPU_RECOVER_MS = 120_000
 
-const TOP = AUTO_LADDER.length - 1
+const TOP = AUTO_LADDER.length - 1 // as duas escadas têm o mesmo tamanho
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v))
 
 export interface ViewerChange {
@@ -37,8 +37,10 @@ export class PerViewerAuto {
   private lastRaiseAt = -Infinity
   /** nível da captura enquanto não há espectadores */
   private idle: number
+  readonly ladder: readonly AutoLevel[]
 
-  constructor(opts: { maxLevel?: number } = {}) {
+  constructor(opts: { maxLevel?: number; ladder?: readonly AutoLevel[] } = {}) {
+    this.ladder = opts.ladder ?? AUTO_LADDER
     this.hardMax = clamp(opts.maxLevel ?? TOP, 0, TOP)
     this.idle = Math.min(AUTO_START, this.hardMax)
   }
@@ -76,7 +78,7 @@ export class PerViewerAuto {
   add(id: string, startAt?: number): void {
     if (this.viewers.has(id)) return
     const start = startAt ?? Math.min(this.captureLevel(), AUTO_START)
-    this.viewers.set(id, new AutoQuality({ start, maxLevel: this.ceiling }))
+    this.viewers.set(id, new AutoQuality({ start, maxLevel: this.ceiling, ladder: this.ladder }))
   }
 
   remove(id: string): void {
@@ -151,14 +153,16 @@ export interface ViewerSendParams {
   maxBitrate: number
   maxFramerate: number
   scaleResolutionDownBy: number
+  degradationPreference: RTCDegradationPreference
 }
 
 export function viewerSendParams(
   level: number,
   viewers: number,
-  captured: { width?: number; height?: number } = {}
+  captured: { width?: number; height?: number } = {},
+  ladder: readonly AutoLevel[] = AUTO_LADDER
 ): ViewerSendParams {
-  const preset = autoLevelPreset(level)
+  const preset = autoLevelPreset(level, ladder)
   const scale = captured.height ? Math.max(1, captured.height / preset.height) : 1
   // o bitrate acompanha os pixels que de fato saem (já reduzidos), como o pixelScale faz com a captura
   const w = captured.width ? captured.width / scale : undefined
@@ -166,7 +170,8 @@ export function viewerSendParams(
   return {
     maxBitrate: bitrateFor(preset, viewers, pixelScale(preset, w, h)),
     maxFramerate: preset.fps,
-    scaleResolutionDownBy: scale
+    scaleResolutionDownBy: scale,
+    degradationPreference: degradationFor(preset)
   }
 }
 
