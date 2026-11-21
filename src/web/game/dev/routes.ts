@@ -10,6 +10,7 @@
  * Laboratórios: /dev/audio, /dev/poker (SceneLab), /dev/golf (GolfLab, o motor do golfe rodando local)
  * /dev/chess (ChessLab) e /dev/checkers (CheckersLab): xadrez e damas locais, com um bot de lances aleatórios;
  * /dev/shooter (ShooterLab): o Tiro na Sala com robôs, sem rede (`?map=quintal&bots=3`, `window.__tiro`).
+ * /dev/briga (BrawlLab): a Briga na Sala com robôs, sem rede (`?arena=telhado&bots=3&char=janja&nivel=dificil&modo=tempo`, `window.__briga`, tecla ` liga as caixas de golpe e o fps);
  * /dev/tycoon (TycoonLab): o Magnata com até 5 bots; /dev/truco (TrucoLab): truco com bots (?n=2, 4 ou 6);
  * /dev/naval (NavalLab): batalha naval contra um bot; /dev/mystery (MysteryLab): Mistério com bots;
  * /dev/pool (PoolLab): sinuca contra um bot; /dev/stop (StopLab): Stop com bots.
@@ -29,6 +30,7 @@ export const DEV_ROUTES: DevRoute[] = [
   { path: '/dev/checkers', load: () => import('./CheckersLab').then((m) => ({ default: m.CheckersLab })) },
   { path: '/dev/tycoon', load: () => import('./TycoonLab').then((m) => ({ default: m.TycoonLab })) },
   { path: '/dev/shooter', load: () => import('./ShooterLab').then((m) => ({ default: m.ShooterLab })) },
+  { path: '/dev/briga', load: () => import('./BrawlLab').then((m) => ({ default: m.BrawlLab })) },
   { path: '/dev/truco', load: () => import('./TrucoLab').then((m) => ({ default: m.TrucoLab })) },
   { path: '/dev/naval', load: () => import('./NavalLab').then((m) => ({ default: m.NavalLab })) },
   { path: '/dev/mystery', load: () => import('./MysteryLab').then((m) => ({ default: m.MysteryLab })) },

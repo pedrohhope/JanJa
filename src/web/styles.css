@@ -1210,3 +1210,111 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 @media (prefers-reduced-motion: reduce) {
   .tiro-feed li, .tiro-call { animation: none; }
 }
+
+/* ---- Briga na Sala (HUD em HTML por cima da cena Pixi) ---- */
+.briga-hud, .briga-pick { position: absolute; inset: 0; color: var(--paper); font-size: clamp(12px, 0.55vw + 8px, 22px); }
+.briga-hud { pointer-events: none; z-index: 5; text-shadow: 0 1px 0 var(--wall), 0 0 3px var(--wall); }
+.briga-portrait { image-rendering: pixelated; display: block; max-width: 100%; height: auto; }
+.briga-wicon { image-rendering: pixelated; height: 22px; width: auto; flex: none; }
+.briga-top { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); text-align: center; line-height: 1.1; }
+.briga-clock strong { display: block; font-size: 2.2em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.briga-clock small { color: var(--dust); }
+.briga-clock.hurry strong, .briga-clock.sudden strong { color: var(--off); }
+.briga-feed { max-width: 36%; }
+.briga-watch { position: absolute; top: 14%; left: 50%; transform: translateX(-50%); padding: 6px 16px; text-align: center; background: rgba(34, 28, 25, 0.88); border: 1px solid var(--rug); border-radius: var(--r-panel); }
+.briga-watch strong { display: block; color: var(--lamp); font-size: 1.3em; }
+.briga-watch small { color: var(--dust); }
+.briga-hints-wrap { position: absolute; left: 8px; right: 8px; bottom: calc(clamp(64px, 9vw, 120px) + 14px); display: flex; justify-content: center; }
+.briga-hints { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; padding: 5px 12px; background: rgba(34, 28, 25, 0.78); border-radius: var(--r-ctl); color: var(--dust); font-size: 0.9em; }
+.briga-hints > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.briga-strip { position: absolute; left: 8px; right: 8px; bottom: 8px; margin: 0; padding: 0; list-style: none; display: flex; justify-content: center; gap: 6px; padding-right: 0; }
+.briga-fighter { --tint: var(--paper); position: relative; flex: 1 1 0; max-width: 190px; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 6px; background: rgba(34, 28, 25, 0.86); border: 1px solid var(--rug); border-bottom: 3px solid var(--tint); border-radius: var(--r-ctl); }
+.briga-fighter.mine { background: rgba(46, 38, 34, 0.94); border-color: var(--tint); }
+.briga-fighter.out { opacity: 0.6; }
+.briga-fighter.dead { opacity: 0.4; filter: grayscale(0.8); }
+.briga-fighter-art { flex: none; width: 2.6em; display: grid; place-items: center; }
+.briga-fighter.compact .briga-fighter-art { width: 1.9em; }
+.briga-fighter-info { min-width: 0; flex: 1; display: flex; flex-direction: column; line-height: 1.05; }
+.briga-fighter-name { font-size: 0.82em; color: var(--dust); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.briga-fighter-name em { font-style: normal; color: var(--lamp); }
+.briga-dmg { font-size: 2.1em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; display: inline-block; transform-origin: left center; }
+.briga-dmg small { font-size: 0.45em; margin-left: 1px; opacity: 0.85; }
+.briga-fighter.compact .briga-dmg { font-size: 1.6em; }
+.briga-dmg.bump { animation: briga-shake 0.32s linear both; }
+.briga-stocks { display: flex; gap: 2px; margin-top: 2px; min-height: 12px; }
+.briga-stocks img { image-rendering: pixelated; height: 12px; width: auto; }
+.briga-stocks img.last { animation: briga-pulse 0.8s ease-in-out infinite alternate; }
+.briga-held { position: absolute; top: -14px; right: 6px; padding: 1px 4px; background: var(--wall); border: 1px solid var(--rug); border-radius: 4px; }
+.briga-held .briga-wicon { height: 18px; }
+.briga-net-tools { bottom: auto; top: 8px; }
+.briga-board { z-index: 6; }
+.briga-ranking { max-height: 94vh; overflow: auto; }
+.briga-podium { gap: 14px; }
+.briga-podium li { max-width: 180px; justify-content: flex-end; }
+.briga-podium .briga-portrait { margin-bottom: 4px; }
+.briga-score-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 14px; }
+.briga-score-table th, .briga-score-table td { padding: 3px 8px; text-align: right; white-space: nowrap; }
+.briga-score-table th:first-child { text-align: left; }
+.briga-score-table thead th { color: var(--dust); font-weight: 500; }
+.briga-score-table tbody tr:nth-child(odd) { background: var(--wall); }
+.briga-score-table tr.me th[scope='row'] { color: var(--lamp); }
+.briga-score-table .rank-place { display: inline-block; width: 2em; color: var(--dust); }
+
+/* tela de escolha */
+.briga-pick { display: flex; flex-direction: column; gap: 12px; padding: 14px clamp(10px, 2vw, 32px) 12px; background: var(--wall); overflow: auto; z-index: 5; text-shadow: none; }
+.briga-pick-head { padding-right: 260px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.briga-pick-head h2 { margin: 0; font-size: 1.9em; font-weight: 600; }
+.briga-sub { margin: 2px 0 0; color: var(--dust); }
+.briga-pick-clock { text-align: right; line-height: 1.1; }
+.briga-pick-clock strong { display: block; font-size: 2.6em; font-variant-numeric: tabular-nums; color: var(--lamp); }
+.briga-pick-clock.hurry strong { color: var(--off); }
+.briga-pick-clock small { color: var(--dust); }
+.briga-cards { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(6px, 1vw, 16px); list-style: none; margin: 0; padding: 0; }
+.briga-cards > li { display: flex; min-height: 0; }
+.briga-card { --bg: var(--sofa); --bg-h: var(--rug); --bd: var(--rug); --bd-h: var(--dust); --fg: var(--paper); flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 10px 12px; text-align: center; font-family: inherit; font-size: inherit; height: auto; min-width: 0; white-space: normal; }
+.briga-card.mine { --bd: var(--lamp); --bd-h: var(--lamp); box-shadow: 0 0 0 2px var(--lamp), 0 8px 22px rgba(0, 0, 0, 0.45); }
+.briga-card:focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
+.briga-card-who { min-height: 26px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; align-items: center; }
+.briga-who { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px 1px 2px; border: 2px solid var(--rug); border-radius: 99px; background: var(--wall); font-size: 0.8em; }
+.briga-who.ready { background: rgba(111, 212, 155, 0.18); }
+.briga-who.you .n { color: var(--lamp); }
+.briga-who .n { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.briga-bot { width: 18px; height: 18px; border-radius: 4px; background: var(--dust); display: inline-block; }
+.briga-card-art { position: relative; flex: 1 1 0; min-height: 0; width: 100%; background: rgba(34, 28, 25, 0.55); border-radius: var(--r-ctl); overflow: hidden; }
+.briga-card-art .briga-portrait { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); max-height: calc(100% - 12px); width: auto; max-width: calc(100% - 8px); }
+.briga-card-name { font-size: 1.7em; font-weight: 600; }
+.briga-card-tag { color: var(--dust); font-size: 0.95em; min-height: 2.2em; }
+.briga-card-stats { display: flex; flex-direction: column; gap: 4px; font-size: 0.9em; align-items: center; }
+.briga-card-stats em { font-style: normal; color: var(--dust); margin-right: 5px; }
+.briga-likes { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; align-items: center; }
+.briga-like { display: inline-flex; align-items: center; gap: 3px; }
+.briga-like .briga-wicon { height: 18px; }
+.briga-pick-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.briga-roster { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 62%; }
+.briga-roster li { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; background: var(--sofa); border-radius: var(--r-ctl); font-size: 0.9em; }
+.briga-roster li .s { color: var(--dust); }
+.briga-roster li.ready .s { color: var(--on); }
+.briga-roster li .t { color: var(--dust); }
+.briga-pick-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.briga-pick-actions button { min-width: 11em; font-size: 1.2em; padding-block: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.briga-keys { margin: 0; color: var(--dust); display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.briga-tools { position: absolute; right: 8px; top: 8px; display: flex; align-items: center; gap: 2px; padding: 3px 6px; background: rgba(34, 28, 25, 0.82); border-radius: var(--r-ctl); }
+@keyframes briga-shake {
+  0% { transform: translate(0, 0) scale(1.35); }
+  15% { transform: translate(-3px, 2px) scale(1.3); }
+  30% { transform: translate(3px, -2px) scale(1.25); }
+  45% { transform: translate(-2px, -1px) scale(1.2); }
+  60% { transform: translate(2px, 1px) scale(1.12); }
+  80% { transform: translate(-1px, 0) scale(1.05); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes briga-pulse { to { opacity: 0.45; } }
+@media (max-width: 900px) {
+  .briga-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .briga-card-art { min-height: 90px; }
+  .briga-roster { max-width: 100%; }
+  .briga-pick-actions { align-items: stretch; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .briga-dmg.bump, .briga-stocks img.last { animation: none; }
+}

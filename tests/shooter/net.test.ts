@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BOT_SLOT_BASE, BTN_FIRE, DEFAULT_SHOOTER_OPTIONS, type ShooterAction, type ShooterView, type SimPlayer } from '../../src/shared/games/shooter/types'
 import { decodePacket, encodeHello, encodePing, toBase64 } from '../../src/shared/games/shooter/codec'
-import { sim } from '../../src/shared/games/shooter/sim'
 import { HostLoop } from '../../src/web/game/shooter/net/hostCore'
 import { createShooterSession, type ManagedShooterSession, type SessionEnv } from '../../src/web/game/shooter/net/session'
 import { Transport, type GameLink } from '../../src/web/game/shooter/net/transport'
@@ -181,7 +180,7 @@ function setup(world: World, ids: string[], opts: { bots?: number } = {}) {
       now: () => world.net.T,
       every: (ms, fn) => world.net.every(ms, fn),
       createRunner(init, o) {
-        const loop = new HostLoop(sim, init, o, world.net.T)
+        const loop = new HostLoop(init, o, world.net.T)
         loop.onApply = (slot, seq) => {
           const k = `${init.epoch}:${slot}`
           const list = apply.get(k) ?? []

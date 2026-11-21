@@ -200,6 +200,77 @@ export function sfxPlan(name: SfxName, count = 1): SfxVoice[] {
       ]
     case 'contagem':
       return [{ kind: 'pulse', t: 0, dur: 0.09, freq: hz('A5'), vel: 0.16, duty: 0.5 }]
+    // ---------- briga na sala ----------
+    case 'briga-pulo':
+      return [{ kind: 'pulse', t: 0, dur: 0.1, freq: 260, freqEnd: 620, vel: 0.14, duty: 0.25 }]
+    case 'briga-pulo-ar':
+      return [
+        { kind: 'pulse', t: 0, dur: 0.09, freq: 520, freqEnd: 1100, vel: 0.12, duty: 0.125 },
+        { kind: 'noise', t: 0, dur: 0.06, vel: 0.1, filter: { type: 'highpass', freq: 4000 } }
+      ]
+    case 'briga-esquiva':
+      return [{ kind: 'noise', t: 0, dur: 0.16, vel: 0.26, attack: 0.02, filter: { type: 'bandpass', freq: 3200, freqEnd: 700, q: 1.1 } }]
+    case 'briga-golpe':
+      // "fuum" curto de um golpe leve
+      return [
+        { kind: 'noise', t: 0, dur: 0.11, vel: 0.24, attack: 0.015, filter: { type: 'bandpass', freq: 900, freqEnd: 2600, q: 1.3 } },
+        { kind: 'tri', t: 0, dur: 0.08, freq: 320, freqEnd: 180, vel: 0.16 }
+      ]
+    case 'briga-golpe-forte':
+      return [
+        { kind: 'noise', t: 0, dur: 0.22, vel: 0.34, attack: 0.04, filter: { type: 'bandpass', freq: 500, freqEnd: 2200, q: 1 } },
+        { kind: 'tri', t: 0.02, dur: 0.18, freq: 220, freqEnd: 90, vel: 0.3 },
+        { kind: 'pulse', t: 0, dur: 0.1, freq: 180, freqEnd: 420, vel: 0.1, duty: 0.5 }
+      ]
+    case 'briga-acerto-0':
+      return [
+        { kind: 'noise', t: 0, dur: 0.05, vel: 0.34, filter: { type: 'bandpass', freq: 1800, q: 1.4 } },
+        { kind: 'tri', t: 0, dur: 0.07, freq: 340, freqEnd: 170, vel: 0.34 }
+      ]
+    case 'briga-acerto-1':
+      return [
+        { kind: 'noise', t: 0, dur: 0.08, vel: 0.42, filter: { type: 'lowpass', freq: 2800, freqEnd: 600 } },
+        { kind: 'tri', t: 0, dur: 0.12, freq: 260, freqEnd: 100, vel: 0.5 },
+        { kind: 'pulse', t: 0, dur: 0.05, freq: 1500, freqEnd: 500, vel: 0.12, duty: 0.25 }
+      ]
+    case 'briga-acerto-2':
+      return [
+        { kind: 'noise', t: 0, dur: 0.16, vel: 0.55, filter: { type: 'lowpass', freq: 3000, freqEnd: 300 } },
+        { kind: 'tri', t: 0, dur: 0.2, freq: 200, freqEnd: 60, vel: 0.62 },
+        { kind: 'pulse', t: 0, dur: 0.08, freq: 1800, freqEnd: 300, vel: 0.16, duty: 0.25 }
+      ]
+    case 'briga-acerto-3':
+      // pancada enorme: o golpe que manda longe
+      return [
+        { kind: 'noise', t: 0, dur: 0.3, vel: 0.7, attack: 0.003, filter: { type: 'lowpass', freq: 3400, freqEnd: 200, q: 0.9 } },
+        { kind: 'tri', t: 0, dur: 0.3, freq: 160, freqEnd: 40, vel: 0.75 },
+        { kind: 'pulse', t: 0, dur: 0.14, freq: 2400, freqEnd: 200, vel: 0.2, duty: 0.125 },
+        { kind: 'noise', t: 0.05, dur: 0.2, vel: 0.2, filter: { type: 'highpass', freq: 5000 } }
+      ]
+    case 'briga-nocaute':
+      // explosão que some para longe e um apito descendo
+      return [
+        { kind: 'noise', t: 0, dur: 0.6, vel: 0.6, attack: 0.004, filter: { type: 'lowpass', freq: 3000, freqEnd: 120, q: 0.9 } },
+        { kind: 'tri', t: 0, dur: 0.45, freq: 110, freqEnd: 28, vel: 0.7 },
+        { kind: 'pulse', t: 0.05, dur: 0.5, freq: hz('E6'), freqEnd: hz('E4'), vel: 0.12, duty: 0.25 },
+        { kind: 'sine', t: 0.1, dur: 0.4, freq: hz('B5'), freqEnd: hz('B3'), vel: 0.12 }
+      ]
+    case 'briga-arremesso':
+      return [
+        { kind: 'noise', t: 0, dur: 0.14, vel: 0.26, attack: 0.02, filter: { type: 'bandpass', freq: 600, freqEnd: 3000, q: 1.2 } },
+        { kind: 'pulse', t: 0, dur: 0.08, freq: 400, freqEnd: 900, vel: 0.1, duty: 0.5 }
+      ]
+    case 'briga-ja':
+      // "já!": acorde curto e brilhante
+      return ['C5', 'E5', 'G5', 'C6'].map((n) => ({ kind: 'pulse', t: 0, dur: 0.32, freq: hz(n), vel: 0.14, duty: 0.25 }) as SfxVoice).concat([{ kind: 'tri', t: 0, dur: 0.3, freq: hz('C3'), vel: 0.4 }, click(0, 0.25, 4000)])
+    case 'briga-parede':
+      return [click(0, 0.22, 1600), { kind: 'tri', t: 0, dur: 0.05, freq: 200, freqEnd: 130, vel: 0.22 }]
+    case 'briga-ultima-vida':
+      return [
+        { kind: 'pulse', t: 0, dur: 0.12, freq: hz('A4'), vel: 0.16, duty: 0.5 },
+        { kind: 'pulse', t: 0.14, dur: 0.12, freq: hz('A4'), vel: 0.16, duty: 0.5 },
+        { kind: 'pulse', t: 0.28, dur: 0.3, freq: hz('E4'), vel: 0.16, duty: 0.5 }
+      ]
   }
 }
 
