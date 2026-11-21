@@ -1262,7 +1262,7 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 
 /* tela de escolha */
 .briga-pick { display: flex; flex-direction: column; gap: 12px; padding: 14px clamp(10px, 2vw, 32px) 12px; background: var(--wall); overflow: auto; z-index: 5; text-shadow: none; }
-.briga-pick-head { padding-right: 190px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.briga-pick-head { padding-right: 260px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .briga-pick-head h2 { margin: 0; font-size: 1.9em; font-weight: 600; }
 .briga-sub { margin: 2px 0 0; color: var(--dust); }
 .briga-pick-clock { text-align: right; line-height: 1.1; }

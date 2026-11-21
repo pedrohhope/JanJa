@@ -133,9 +133,25 @@ export interface InputHost {
   enabled(): boolean
 }
 
+/** polls em que um toque rápido continua valendo (2 = uns 33 ms, cobre o tick da sessão) */
+export const TAP_POLLS = 2
+
+function countDown<K>(m: Map<K, number>): void {
+  for (const [k, n] of m) {
+    if (n <= 1) m.delete(k)
+    else m.set(k, n - 1)
+  }
+}
+
 /** Liga teclado, controle e toque ao navegador. `poll()` uma vez por tick devolve o `BrawlInput`. */
 export class BrawlInputController {
   private keys = new Set<string>()
+  /**
+   * Toque rápido: a tecla apertada conta por TAP_POLLS polls mesmo se já foi solta. Assim um toque
+   * mais curto que um tick (16 ms) não se perde entre este poll e o tick da sessão (timers separados).
+   */
+  private tapped = new Map<string, number>()
+  private tappedTouch = new Map<number, number>()
   private touchAxes: Axes = { mx: 0, my: 0 }
   private touchButtons = 0
   private stick: { id: number; cx: number; cy: number } | null = null
@@ -153,6 +169,7 @@ export class BrawlInputController {
       if (!GAME_KEYS.has(e.code) || e.ctrlKey || e.metaKey || e.altKey) return
       if (isTypingTarget(e.target) || !host.enabled()) return
       this.keys.add(e.code)
+      this.tapped.set(e.code, TAP_POLLS)
       e.preventDefault()
     })
     on('keyup', (e) => {
@@ -164,6 +181,7 @@ export class BrawlInputController {
   /** botão na tela (usado pelo componente de toque) */
   setTouchButton(bit: number, down: boolean): void {
     this.touchButtons = down ? this.touchButtons | bit : this.touchButtons & ~bit
+    if (down) this.tappedTouch.set(bit, TAP_POLLS)
   }
 
   stickDown(id: number, x: number, y: number): void {
@@ -189,6 +207,8 @@ export class BrawlInputController {
 
   private release(): void {
     this.keys.clear()
+    this.tapped.clear()
+    this.tappedTouch.clear()
     this.touchButtons = 0
     this.touchAxes = { mx: 0, my: 0 }
     this.stick = null
@@ -211,8 +231,13 @@ export class BrawlInputController {
         }
       }
     }
-    const touch = this.touchButtons || this.touchAxes.mx || this.touchAxes.my ? { axes: this.touchAxes, buttons: this.touchButtons } : null
-    return composeInput({ keys: this.keys, pad, touch }, ++this.seq)
+    let touchButtons = this.touchButtons
+    for (const bit of this.tappedTouch.keys()) touchButtons |= bit
+    const touch = touchButtons || this.touchAxes.mx || this.touchAxes.my ? { axes: this.touchAxes, buttons: touchButtons } : null
+    const keys = this.tapped.size ? new Set([...this.keys, ...this.tapped.keys()]) : this.keys
+    countDown(this.tapped)
+    countDown(this.tappedTouch)
+    return composeInput({ keys, pad, touch }, ++this.seq)
   }
 
   dispose(): void {

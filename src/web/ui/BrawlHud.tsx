@@ -273,7 +273,7 @@ function BrawlPick(p: BrawlHudProps): ReactElement {
         </div>
         <div className={`briga-pick-clock ${secs <= 5 ? 'hurry' : ''}`} role="timer" aria-label={`Faltam ${secs} segundos`}>
           <strong>{secs}</strong>
-          <small>{waiting > 0 ? `Falta${waiting > 1 ? 'm' : ''} ${waiting} marcar pronto` : 'Todo mundo pronto'}</small>
+          <small>{waiting > 0 ? (waiting > 1 ? `Faltam ${waiting} pessoas marcarem pronto` : 'Falta 1 pessoa marcar pronto') : 'Todo mundo pronto'}</small>
         </div>
       </header>
 
