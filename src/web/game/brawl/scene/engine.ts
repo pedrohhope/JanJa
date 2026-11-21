@@ -198,12 +198,12 @@ export class BrawlEngine {
     if (this.ready) this.fit()
   }
 
-  /** ampliação inteira; em palco menor que 480x270 cai para uma fração (a arena nunca é cortada) */
+  /** ampliação inteira a partir de 3x (pixel perfeito); em palco menor cai para uma fração, para a arena encher o palco sem ser cortada */
   private fit(): void {
     const app = this.app
     if (!app) return
     const fit = Math.min(this.hostW / ARENA_W, this.hostH / ARENA_H)
-    this.scale = fit >= 1 ? Math.floor(fit) : fit
+    this.scale = fit >= 3 ? Math.floor(fit) : fit
     const cw = Math.round(ARENA_W * this.scale)
     const ch = Math.round(ARENA_H * this.scale)
     const cv = app.canvas

@@ -1212,7 +1212,6 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 }
 
 /* ---- Briga na Sala (HUD em HTML por cima da cena Pixi) ---- */
-.briga-host { position: relative; }
 .briga-hud, .briga-pick { position: absolute; inset: 0; color: var(--paper); font-size: clamp(12px, 0.55vw + 8px, 22px); }
 .briga-hud { pointer-events: none; z-index: 5; text-shadow: 0 1px 0 var(--wall), 0 0 3px var(--wall); }
 .briga-portrait { image-rendering: pixelated; display: block; max-width: 100%; height: auto; }
@@ -1263,7 +1262,7 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 
 /* tela de escolha */
 .briga-pick { display: flex; flex-direction: column; gap: 12px; padding: 14px clamp(10px, 2vw, 32px) 12px; background: var(--wall); overflow: auto; z-index: 5; text-shadow: none; }
-.briga-pick-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.briga-pick-head { padding-right: 190px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .briga-pick-head h2 { margin: 0; font-size: 1.9em; font-weight: 600; }
 .briga-sub { margin: 2px 0 0; color: var(--dust); }
 .briga-pick-clock { text-align: right; line-height: 1.1; }
@@ -1272,7 +1271,7 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 .briga-pick-clock small { color: var(--dust); }
 .briga-cards { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(6px, 1vw, 16px); list-style: none; margin: 0; padding: 0; }
 .briga-cards > li { display: flex; min-height: 0; }
-.briga-card { --bg: var(--sofa); --bg-h: var(--rug); --bd: var(--rug); --bd-h: var(--dust); --fg: var(--paper); flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 10px 12px; text-align: center; font-family: inherit; font-size: inherit; height: auto; min-width: 0; }
+.briga-card { --bg: var(--sofa); --bg-h: var(--rug); --bd: var(--rug); --bd-h: var(--dust); --fg: var(--paper); flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 10px 12px; text-align: center; font-family: inherit; font-size: inherit; height: auto; min-width: 0; white-space: normal; }
 .briga-card.mine { --bd: var(--lamp); --bd-h: var(--lamp); box-shadow: 0 0 0 2px var(--lamp), 0 8px 22px rgba(0, 0, 0, 0.45); }
 .briga-card:focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
 .briga-card-who { min-height: 26px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; align-items: center; }
@@ -1281,8 +1280,8 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 .briga-who.you .n { color: var(--lamp); }
 .briga-who .n { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .briga-bot { width: 18px; height: 18px; border-radius: 4px; background: var(--dust); display: inline-block; }
-.briga-card-art { flex: 1 1 auto; min-height: 0; display: grid; place-items: end center; width: 100%; padding: 4px 0; background: rgba(34, 28, 25, 0.55); border-radius: var(--r-ctl); overflow: hidden; }
-.briga-card-art .briga-portrait { max-height: 100%; width: auto; }
+.briga-card-art { position: relative; flex: 1 1 0; min-height: 0; width: 100%; background: rgba(34, 28, 25, 0.55); border-radius: var(--r-ctl); overflow: hidden; }
+.briga-card-art .briga-portrait { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); max-height: calc(100% - 12px); width: auto; max-width: calc(100% - 8px); }
 .briga-card-name { font-size: 1.7em; font-weight: 600; }
 .briga-card-tag { color: var(--dust); font-size: 0.95em; min-height: 2.2em; }
 .briga-card-stats { display: flex; flex-direction: column; gap: 4px; font-size: 0.9em; align-items: center; }
