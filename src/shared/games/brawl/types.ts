@@ -254,6 +254,8 @@ export interface ProjectileSpec {
   /** atravessa lutadores (bate em cada um no máximo 1 vez) */
   pierce: boolean
   hit: Omit<Hitbox, 'x' | 'y' | 'w' | 'h'>
+  /** (adicionado) acerto do ÚLTIMO projétil da rajada (o último arco de Wi-Fi empurra mais); sem isto todos usam `hit` */
+  lastHit?: Omit<Hitbox, 'x' | 'y' | 'w' | 'h'>
 }
 
 // =====================================================================================
@@ -451,7 +453,7 @@ export interface Fighter {
   /** tick do golpe (0 = primeiro de startup); carregando: fica em 0 e conta `charge` */
   moveTick: number
   charge: number
-  /** slots já acertados por este uso do golpe (+ tick do último, para multiHit) */
+  /** slots já acertados por este uso do golpe (+ tick do último, para multiHit): pares planos [slot, tick, slot, tick...] */
   hitSlots: number[]
   hitstunUntil: number
   /** congelado até este tick (hit-stop) */
@@ -476,6 +478,8 @@ export interface Fighter {
   lastInput?: BrawlInput
   /** memória do robô (serializável; só bots.ts mexe) */
   ai?: Record<string, number>
+  /** (adicionado) histórico de posições para a compensação de atraso: LAG_HISTORY_TICKS pares x,y em anel (índice = (tick % N) * 2) */
+  hist: number[]
 }
 
 export interface WeaponItem {
@@ -511,6 +515,7 @@ export interface Projectile {
   /** quando a arma é arremessada, a cena desenha esta arma */
   weapon?: WeaponId
 }
+// Nota: nos projéteis `hitSlots` guarda só os slots (sem tick); em `Puddle`, `x` é o CENTRO da poça.
 
 export interface Puddle {
   id: number
