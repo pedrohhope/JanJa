@@ -51,7 +51,6 @@ export function createLocalSession(
     if (ev.length) for (const cb of listeners) cb(ev)
   }
   const loop = new HostLoop(
-    simApi,
     { state, epoch: 1 },
     (m) => {
       if (m.k === 'snap' && client.onSnapshot(m.snap, env.now())) flush()

@@ -1,12 +1,11 @@
 /**
- * Cliente da simulação: predição e reconciliação do próprio boneco, interpolação dos outros,
- * projéteis extrapolados, tiro previsto e eventos sem repetição. Sem DOM, sem rede, relógio injetado
- * (todo método que depende de tempo recebe `now` em ms). O host também usa isto (laço local).
+ * Cliente do Tiro: a base genérica (`realtime/client.ts`: buffer de snapshots, relógio do host,
+ * eventos sem repetição, predição e reconciliação com suavização) mais o que é do tiro: mira,
+ * tiro previsto, projéteis extrapolados e a montagem do `ShooterFrame`. Sem DOM, sem rede, relógio
+ * injetado (todo método que depende de tempo recebe `now` em ms). O host também usa isto (laço local).
  */
 import {
   BTN_FIRE,
-  INPUT_REDUNDANCY,
-  INTERP_DELAY_MS,
   PICKUP_RESPAWN_TICKS,
   PLAYER_RADIUS,
   TICK_MS,
@@ -20,16 +19,14 @@ import {
   type SimPickup,
   type SimPlayer
 } from '../../../../shared/games/shooter/types'
-import { mergeStatics, quantizeInput, type SnapPlayer, type Snapshot, type SnapshotStatics } from '../../../../shared/games/shooter/codec'
+import { quantizeInput, type SnapPlayer, type Snapshot } from '../../../../shared/games/shooter/codec'
+import { RealtimeClient } from '../../realtime/client'
 import type { FrameEvent, InputState, RenderPickup, RenderPlayer, RenderProjectile, ShooterFrame } from '../contract'
+import { shooterSim, type ShooterTypes } from './realtimeBinding'
 
-/** correção menor que isto é suavizada; maior é teletransporte */
-export const SMOOTH_MAX_PX = 24
-export const SMOOTH_MS = 100
+export { SMOOTH_MAX_PX, SMOOTH_MS } from '../../realtime/client'
 /** tiro previsto some depois disto se o real não chegar */
 export const PREDICTED_SHOT_TTL_MS = 300
-const MAX_SNAPS = 40
-const MAX_PENDING = 120
 /** distância que conta como teletransporte entre dois snapshots (respawn) */
 const TELEPORT_PX = 64
 
@@ -39,200 +36,65 @@ interface PredictedShot {
 }
 
 export interface ClientOptions {
-  sim: Pick<SimApi, 'movePlayer'>
+  /** a sim do tiro com o `movePlayer` (o padrão é a de verdade; testes podem trocar) */
+  sim?: Pick<SimApi, 'movePlayer'>
   getMap(id: MapId): MapDef
   /** meu slot (null = espectador) */
   me: number | null
   interpDelayMs?: number
 }
 
-export class ClientCore {
-  readonly me: number | null
-  private readonly sim: Pick<SimApi, 'movePlayer'>
+export class ClientCore extends RealtimeClient<ShooterTypes, FrameEvent> {
   private readonly getMap: (id: MapId) => MapDef
-  private readonly delay: number
-  private snaps: Snapshot[] = []
-  private epoch = -1
-  private statics: SnapshotStatics | null = null
-  private offset: number | null = null
-  private lastRecvAt = 0
   private roster = new Map<number, ShooterPlayerView>()
-  private seq = 0
-  private pending: Input[] = []
-  private sent: Input[] = []
-  private pred: SimPlayer | null = null
-  private predTick = 0
   private localNextFire = 0
-  private smoothDx = 0
-  private smoothDy = 0
-  private smoothAt = 0
   private aimX = 1
   private aimY = 0
   private shots: PredictedShot[] = []
   private nextTempId = -1
-  private seenEvents = new Set<number>()
-  private firstSnapshot = true
-  private out: FrameEvent[] = []
-  private pingValue = 0
   private mapCache: MapDef | null = null
 
   constructor(opts: ClientOptions) {
-    this.me = opts.me
-    this.sim = opts.sim
+    super({
+      sim: opts.sim ? { ...shooterSim, predictSelf: (self, snap, input, tick) => opts.sim!.movePlayer(opts.getMap(snap.mapId), self, input, tick) } : shooterSim,
+      me: opts.me,
+      interpDelayMs: opts.interpDelayMs
+    })
     this.getMap = opts.getMap
-    this.delay = opts.interpDelayMs ?? INTERP_DELAY_MS
   }
-
-  // ---------- entrada de dados ----------
 
   setRoster(players: readonly ShooterPlayerView[]): void {
     this.roster = new Map(players.map((p) => [p.slot, p]))
   }
 
-  setPing(ms: number): void {
-    this.pingValue = this.pingValue === 0 ? ms : this.pingValue * 0.7 + ms * 0.3
-  }
+  // ---------- ganchos da base ----------
 
-  get pingMs(): number {
-    return Math.round(this.pingValue)
-  }
-
-  /**
-   * Novo host: segue desenhando o último retrato até chegar o primeiro do epoch novo (aí esquece
-   * snapshots e relógio, porque o tick recomeça de onde o novo host parou). Entradas pendentes e
-   * sequência continuam.
-   */
-  beginEpoch(epoch: number): void {
-    if (epoch === this.epoch) return
-    this.epoch = epoch
-    this.resetPending = true
-  }
-  private resetPending = false
-
-  get latest(): Snapshot | undefined {
-    return this.snaps[this.snaps.length - 1]
-  }
-
-  get latestStatics(): SnapshotStatics | null {
-    return this.statics
-  }
-
-  get lastReceiveAt(): number {
-    return this.lastRecvAt
-  }
-
-  get hasSnapshot(): boolean {
-    return this.snaps.length > 0
-  }
-
-  /** Aplica um snapshot. Devolve false se for repetido, antigo ou de outro epoch. */
-  onSnapshot(snap: Snapshot, now: number): boolean {
-    if (snap.epoch !== this.epoch) {
-      if (snap.epoch < this.epoch) return false
-      this.beginEpoch(snap.epoch)
+  /** meu tiro já foi tocado na hora (previsão); o real só tira o projétil previsto */
+  protected override onEvent(ev: ShooterTypes['Event'], _now: number): void {
+    if (ev.type === 'shot' && this.me !== null && ev.slot === this.me) {
+      this.shots.shift()
+      return
     }
-    if (this.resetPending) {
-      this.resetPending = false
-      this.snaps = []
-      this.offset = null
-      this.firstSnapshot = true
-      this.seenEvents.clear()
-    }
-    const last = this.latest
-    if (last && snap.tick <= last.tick) return false
-    this.statics = mergeStatics(this.statics, snap)
-    this.snaps.push(snap)
-    if (this.snaps.length > MAX_SNAPS) this.snaps.shift()
-    this.lastRecvAt = now
-
-    const sample = now - snap.tick * TICK_MS
-    if (this.offset === null || sample < this.offset) this.offset = sample
-    else this.offset += (sample - this.offset) * 0.01
-
-    this.processEvents(snap, now)
-    this.reconcile(snap, now)
-    return true
+    this.out.push(ev)
   }
 
-  private processEvents(snap: Snapshot, now: number): void {
-    const ordinal = new Map<number, number>()
-    for (const { tick, ev } of snap.events) {
-      const i = ordinal.get(tick) ?? 0
-      ordinal.set(tick, i + 1)
-      const key = tick * 1024 + i
-      if (this.seenEvents.has(key)) continue
-      this.seenEvents.add(key)
-      if (this.firstSnapshot) continue // histórico de antes de eu chegar: não toca de novo
-      // meu tiro já foi tocado na hora (previsão); o real só tira o projétil previsto
-      if (ev.type === 'shot' && this.me !== null && ev.slot === this.me) {
-        this.shots.shift()
-        continue
-      }
-      this.out.push(ev)
-    }
-    this.firstSnapshot = false
-    if (this.seenEvents.size > 600) {
-      const floor = (snap.tick - 400) * 1024
-      for (const k of this.seenEvents) if (k < floor) this.seenEvents.delete(k)
-    }
+  protected override afterEvents(now: number): void {
     this.shots = this.shots.filter((s) => now - s.t0 < PREDICTED_SHOT_TTL_MS)
   }
 
-  /** eventos novos desde a última chamada */
-  drainEvents(): FrameEvent[] {
-    if (!this.out.length) return this.out
-    const o = this.out
-    this.out = []
-    return o
+  protected override selfFrom(snap: Snapshot): SimPlayer | null {
+    const np = super.selfFrom(snap)
+    if (np) np.id = this.roster.get(np.slot)?.id ?? np.id
+    return np
   }
 
   private idOf(slot: number, bot: boolean): string {
     return this.roster.get(slot)?.id ?? this.statics?.ids[slot] ?? (bot ? `bot-${slot}` : `jogador-${slot}`)
   }
 
-  private reconcile(snap: Snapshot, now: number): void {
-    if (this.me === null) return
-    const sp = snap.players.find((p) => p.slot === this.me)
-    if (!sp) {
-      this.pred = null
-      return
-    }
-    this.pending = this.pending.filter((i) => i.seq > sp.lastSeq)
-    const prev = this.pred
-    const prevPos = prev ? this.renderPos(prev, now) : null
-    const np: SimPlayer = { ...sp, id: this.idOf(sp.slot, sp.bot) }
-    let tick = snap.tick
-    if (np.alive && !np.away && snap.phase !== 'fim') {
-      const map = this.map(snap.mapId)
-      for (const i of this.pending) this.sim.movePlayer(map, np, i, ++tick)
-    }
-    this.pred = np
-    this.predTick = tick
-    if (prevPos && prev?.alive && np.alive) {
-      const dx = prevPos.x - np.x
-      const dy = prevPos.y - np.y
-      if (Math.hypot(dx, dy) < SMOOTH_MAX_PX) {
-        this.smoothDx = dx
-        this.smoothDy = dy
-        this.smoothAt = now
-        return
-      }
-    }
-    this.smoothDx = this.smoothDy = 0
-  }
-
   private map(id: MapId): MapDef {
     if (!this.mapCache || this.mapCache.id !== id) this.mapCache = this.getMap(id)
     return this.mapCache
-  }
-
-  private smoothFactor(now: number): number {
-    return Math.max(0, 1 - (now - this.smoothAt) / SMOOTH_MS)
-  }
-
-  private renderPos(p: { x: number; y: number }, now: number): { x: number; y: number } {
-    const f = this.smoothFactor(now)
-    return f > 0 ? { x: p.x + this.smoothDx * f, y: p.y + this.smoothDy * f } : { x: p.x, y: p.y }
   }
 
   // ---------- entrada local ----------
@@ -243,32 +105,29 @@ export class ClientCore {
    */
   localTick(now: number, st: InputState): Input[] | null {
     if (this.me === null) return null
-    const snap = this.latest
     const mag = Math.hypot(st.ax, st.ay)
     const aimOk = mag > 1e-4
-    const input = quantizeInput({
-      seq: ++this.seq,
-      mx: st.mx,
-      my: st.my,
-      ax: aimOk ? st.ax / mag : this.aimX,
-      ay: aimOk ? st.ay / mag : this.aimY,
-      buttons: st.buttons
-    })
-    if (aimOk) {
-      this.aimX = st.ax / mag
-      this.aimY = st.ay / mag
-    }
-    this.pending.push(input)
-    if (this.pending.length > MAX_PENDING) this.pending.shift()
-    this.sent.push(input)
-    if (this.sent.length > INPUT_REDUNDANCY + 1) this.sent.shift()
-
-    const p = this.pred
-    if (snap && p && p.alive && !p.away && snap.phase !== 'fim') {
-      this.sim.movePlayer(this.map(snap.mapId), p, input, ++this.predTick)
-      if (input.buttons & BTN_FIRE) this.predictShot(p, input, now)
-    }
-    return this.sent.slice()
+    return this.advanceLocal(
+      now,
+      (seq) => {
+        const input = quantizeInput({
+          seq,
+          mx: st.mx,
+          my: st.my,
+          ax: aimOk ? st.ax / mag : this.aimX,
+          ay: aimOk ? st.ay / mag : this.aimY,
+          buttons: st.buttons
+        })
+        if (aimOk) {
+          this.aimX = st.ax / mag
+          this.aimY = st.ay / mag
+        }
+        return input
+      },
+      (p, input, at) => {
+        if (input.buttons & BTN_FIRE) this.predictShot(p, input, at)
+      }
+    )
   }
 
   private predictShot(p: SimPlayer, input: Input, now: number): void {
@@ -304,32 +163,12 @@ export class ClientCore {
 
   // ---------- quadro ----------
 
-  private hostNow(now: number): number {
-    return this.offset === null ? 0 : now - this.offset
-  }
-
   /** Quadro para desenhar. `net` e `pingMs` o dono da sessão preenche. */
   frame(now: number, roster?: readonly ShooterPlayerView[]): ShooterFrame | null {
-    const last = this.latest
-    if (!last || this.offset === null) return null
+    const w = this.interpolation(now)
+    if (!w) return null
     if (roster) this.setRoster(roster)
-    const hostNow = this.hostNow(now)
-    const renderT = hostNow - this.delay
-    const tickNow = Math.min(last.tick + 10, Math.max(last.tick, hostNow / TICK_MS))
-
-    // par de snapshots em volta de renderT
-    let a = this.snaps[0]
-    let b = this.snaps[0]
-    for (let i = this.snaps.length - 1; i >= 0; i--) {
-      if (this.snaps[i].tick * TICK_MS <= renderT) {
-        a = this.snaps[i]
-        b = this.snaps[Math.min(i + 1, this.snaps.length - 1)]
-        break
-      }
-    }
-    if (renderT >= last.tick * TICK_MS) a = b = last
-    const span = (b.tick - a.tick) * TICK_MS
-    const u = span > 0 ? Math.min(1, Math.max(0, (renderT - a.tick * TICK_MS) / span)) : 0
+    const { last, a, b, u, hostNow, renderT, tickNow } = w
 
     const players: RenderPlayer[] = []
     for (const sp of last.players) {
