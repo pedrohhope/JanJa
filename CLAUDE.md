@@ -17,6 +17,7 @@ npm run typecheck         # 3 tsconfigs: web, worker, testes
 npm test                  # vitest (ambiente node)
 npm run test:e2e          # Chrome de verdade contra o wrangler dev
 npm run sprites           # regenera public/game/sprites.{png,json} a partir de src/web/game/art
+npm run thumbs            # refaz os prints da vitrine de jogos (public/game/thumbs/*.webp) a partir dos laboratórios /dev/* e reescreve src/web/ui/games/thumbs.ts
 npm run icons             # regenera public/icons/icon-{192,512}.png (TV) e public/favicon.svg (Jan fazendo o L) a partir de src/web/ui/pixelData.ts
 npm run validate-commits  # confere a mensagem do último commit
 cd helper && cargo test   # helper (em Linux a injeção de input é um stub)
@@ -76,7 +77,7 @@ Antes de entregar qualquer mudança: `npm run typecheck && npm test && npx vite 
 
 - Todo texto de interface em **português do Brasil**, frases curtas e simples. Sem CAIXA ALTA, sem setas "→", sem jargão.
 - Visual "a TV da sala": fundo café `#221C19`, abajur `#FFC94A`, papel `#F3EBDD`, poeira `#B7A99A`; fontes Archivo (interface) e Pixelify Sans (pixel). Tokens em `src/web/styles.css` (`:root`). Nada de gradiente chamativo nem cara de template.
-- Pixel art é sempre gerada por código (`src/web/game/art`, `src/web/ui/pixelData.ts`). Não adicione imagens prontas.
+- Pixel art é sempre gerada por código (`src/web/game/art`, `src/web/ui/pixelData.ts`). Não adicione imagens prontas. A exceção são os prints da vitrine de jogos (`public/game/thumbs/`): são gerados pelo `npm run thumbs` a partir dos laboratórios `/dev/*` e versionados; rode de novo quando o visual de um jogo mudar.
 - Dica de botão em jogo usa `useInputDevice` (`src/web/game/useInputDevice.ts`) + `<Glyph>`/`<Key>` (`src/web/ui/InputGlyph.tsx`), que trocam teclado, controle (Xbox, PlayStation, Nintendo) e toque sozinhos; no navegador do dev, `?pad=xbox|playstation` força o controle. Sem vibração (decisão do dono: não use `vibrationActuator`).
 - Mic começa **mudo** e a câmera começa **desligada**. Escolhas da pessoa vão para `storage.ts`.
 - Erros para a pessoa dizem o que fazer ("Libere no cadeado da barra de endereço"), nunca só o nome técnico.
