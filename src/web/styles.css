@@ -1299,7 +1299,7 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 .briga-pick-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .briga-pick-actions button { min-width: 11em; font-size: 1.2em; padding-block: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .briga-keys { margin: 0; color: var(--dust); display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
-.briga-tools { position: absolute; right: 8px; top: 8px; display: none; }
+.briga-tools { position: absolute; right: 8px; top: 8px; display: flex; align-items: center; gap: 2px; padding: 3px 6px; background: rgba(34, 28, 25, 0.82); border-radius: var(--r-ctl); }
 @keyframes briga-shake {
   0% { transform: translate(0, 0) scale(1.35); }
   15% { transform: translate(-3px, 2px) scale(1.3); }
