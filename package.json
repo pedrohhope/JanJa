@@ -18,6 +18,7 @@
     "sprites": "tsx scripts/build-sprites.ts",
     "icons": "tsx scripts/build-icons.ts",
     "test:e2e": "tsx tests/e2e/mesh.e2e.ts",
+    "thumbs": "tsx scripts/build-thumbs.ts",
     "validate-commits": "tsx scripts/validate-commits.ts",
     "prepare": "node scripts/install-hooks.mjs"
   },
