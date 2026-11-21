@@ -1485,3 +1485,4 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 @media (prefers-reduced-motion: reduce) {
   .briga-dmg.bump, .briga-stocks img.last { animation: none; }
 }
+.games-detail-name:focus, .games-detail-name:focus-visible { outline: none; }
