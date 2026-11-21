@@ -11,7 +11,7 @@ import type { StopEvent } from '../../shared/games/stop/types'
 import type { TrucoEvent } from '../../shared/games/truco/types'
 import type { TycoonEvent } from '../../shared/games/tycoon/types'
 import type { GameId } from '../../shared/games/protocol'
-import { SHOOTER_SFX, type GameAudio, type MusicTrack, type RawEventBatch, type SfxName } from './contract'
+import { BRAWL_SFX, SHOOTER_SFX, type GameAudio, type MusicTrack, type RawEventBatch, type SfxName } from './contract'
 import { sfxGate, type SfxBus } from './shooter/sfxBus'
 import {
   checkersSfxForEvent,
@@ -190,7 +190,7 @@ export function GameAudioDriver({ gameId, seated, watching, started, lastEvents,
     if (!ready || !sfxBus) return
     const last = new Map<string, number>()
     return sfxBus.subscribe((name, opts) => {
-      if (!soundsRef.current || !(SHOOTER_SFX as readonly string[]).includes(name)) return
+      if (!soundsRef.current || !((SHOOTER_SFX as readonly string[]).includes(name) || (BRAWL_SFX as readonly string[]).includes(name))) return
       if (!sfxGate(last, name, performance.now())) return
       audio.current?.sfx(name as SfxName, opts)
     })

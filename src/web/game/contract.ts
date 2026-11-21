@@ -224,6 +224,21 @@ export type SfxName =
   | 'pegar-vida'
   | 'renascer'
   | 'contagem'
+  // briga na sala
+  | 'briga-pulo'
+  | 'briga-pulo-ar'
+  | 'briga-esquiva'
+  | 'briga-golpe'
+  | 'briga-golpe-forte'
+  | 'briga-acerto-0'
+  | 'briga-acerto-1'
+  | 'briga-acerto-2'
+  | 'briga-acerto-3'
+  | 'briga-nocaute'
+  | 'briga-arremesso'
+  | 'briga-ja'
+  | 'briga-parede'
+  | 'briga-ultima-vida'
 
 /** nomes de efeito do tiro (a cena pede por string; isto valida) */
 export const SHOOTER_SFX: readonly SfxName[] = [
@@ -243,4 +258,26 @@ export const SHOOTER_SFX: readonly SfxName[] = [
   'pegar-vida',
   'renascer',
   'contagem'
+]
+
+/** nomes de efeito da briga (a cena pede por string; isto valida). `pegar-arma`, `renascer` e `contagem` são os do tiro */
+export const BRAWL_SFX: readonly SfxName[] = [
+  'briga-pulo',
+  'briga-pulo-ar',
+  'briga-esquiva',
+  'briga-golpe',
+  'briga-golpe-forte',
+  'briga-acerto-0',
+  'briga-acerto-1',
+  'briga-acerto-2',
+  'briga-acerto-3',
+  'briga-nocaute',
+  'briga-arremesso',
+  'briga-ja',
+  'briga-parede',
+  'briga-ultima-vida',
+  'pegar-arma',
+  'renascer',
+  'contagem',
+  'podium'
 ]

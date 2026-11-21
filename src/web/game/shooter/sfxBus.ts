@@ -30,7 +30,14 @@ export const SFX_MIN_GAP_MS: Record<string, number> = {
   dano: 70,
   'tiro-pistola': 30,
   'tiro-escopeta': 40,
-  explosao: 60
+  explosao: 60,
+  'briga-golpe': 60,
+  'briga-pulo': 60,
+  'briga-pulo-ar': 60,
+  'briga-acerto-0': 50,
+  'briga-acerto-1': 50,
+  'briga-acerto-2': 50,
+  'briga-acerto-3': 50
 }
 export const SFX_DEFAULT_GAP_MS = 25
 

@@ -16,6 +16,7 @@ import type { CheckersAction, CheckersView } from '../../shared/games/checkers/t
 import type { ChessAction, ChessView, Promo } from '../../shared/games/chess/types'
 import type { GolfView } from '../../shared/games/golf/types'
 import type { ShooterView } from '../../shared/games/shooter/types'
+import type { BrawlView } from '../../shared/games/brawl/types'
 import type { PokerView } from '../../shared/games/poker/types'
 import type { Cell, Placement } from '../../shared/games/naval/fleet'
 import type { MysteryAction, MysteryView } from '../../shared/games/mystery/types'
@@ -66,6 +67,7 @@ const TycoonHudLazy = lazyChunk(() => import('./TycoonHud').then((m) => ({ defau
 const TrucoSceneLazy = lazyChunk(loadTrucoScene)
 const TrucoHudLazy = lazyChunk(() => import('./TrucoHud').then((m) => ({ default: m.TrucoHud })))
 // e o Tiro na Sala (a cena Pixi dele ainda é outro pedaço, baixado por loadShooterScene)
+const BrawlStageLazy = lazyChunk(() => import('./BrawlStage').then((m) => ({ default: m.BrawlStage })))
 const ShooterStageLazy = lazyChunk(() => import('./ShooterStage').then((m) => ({ default: m.ShooterStage })))
 // e a batalha naval
 const NavalSceneLazy = lazyChunk(loadNavalScene)
@@ -419,6 +421,9 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   tycoonRef.current = tycoonView
   const shooterView = gameId === 'shooter' && game.view ? (game.view as ShooterView) : null
   const shooterBus = useMemo(() => createSfxBus(), [])
+  const brawlView = gameId === 'brawl' && game.view ? (game.view as BrawlView) : null
+  const brawlBus = useMemo(() => createSfxBus(), [])
+  const [brawlTrack, setBrawlTrack] = useState<MusicTrack | null>(null)
   const [shooterTrack, setShooterTrack] = useState<MusicTrack | null>(null)
   /** jogo de tabuleiro para dois (xadrez ou damas) */
   const duelView = chessView ?? checkersView
@@ -440,7 +445,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   const ghostStyles = useRef(new Map<string, CSSProperties>())
   const narrow = useMedia('(max-width: 700px) and (orientation: portrait)')
   const reducedMotion = useMedia('(prefers-reduced-motion: reduce)')
-  const tableMode = (!!view || !!golfView || !!duelView || !!tycoonView || !!trucoView || !!shooterView || !!navalView || !!mysteryView || !!poolView || !!stopView) && showTable
+  const tableMode = (!!view || !!golfView || !!duelView || !!tycoonView || !!trucoView || !!shooterView || !!brawlView || !!navalView || !!mysteryView || !!poolView || !!stopView) && showTable
   const hiTile = tableMode && hi && tiles.some((t) => t.id === hi) ? hi : null
   const layout: SceneLayout = hiTile ? 'faixa' : 'mesa'
   const hasView = !!game.view
@@ -544,7 +549,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
     if (!tableMode) return undefined
     if (hiTile) return { mode: id === hiTile ? 'hi' : 'parked' }
     if (narrow) return { mode: 'strip' }
-    if (golfView || duelView || tycoonView || trucoView || shooterView || navalView || mysteryView || poolView || stopView) {
+    if (golfView || duelView || tycoonView || trucoView || shooterView || brawlView || navalView || mysteryView || poolView || stopView) {
       const style = { right: CORNER_TV.edge, top: CORNER_TV.edge + idx * (CORNER_TV.h + CORNER_TV.gap), width: CORNER_TV.w, height: CORNER_TV.h }
       return { mode: 'rect', style }
     }
@@ -967,6 +972,31 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
                     gameApi.close()
                     gameApi.open('shooter', options)
                   }}
+                  onClose={gameApi.close}
+                  onBackToScreens={() => setShowTable(false)}
+                  onSpotlight={onShooterSpotlight}
+                  musicOn={musicOn}
+                  musicVolume={musicVolume}
+                  onMusicOn={toggleMusic}
+                  onMusicVolume={changeMusicVolume}
+                />
+              </Suspense>
+            )}
+            {brawlView && (
+              <Suspense fallback={null}>
+                <BrawlStageLazy
+                  view={brawlView}
+                  manager={state.manager}
+                  relay={gameApi.relay}
+                  onRelay={gameApi.onRelay}
+                  act={gameApi.act}
+                  visible={tableMode}
+                  pip={!!hiTile}
+                  canManage={!!game.lobby?.canManage}
+                  reducedMotion={reducedMotion}
+                  sfxBus={brawlBus}
+                  onTrack={setBrawlTrack}
+                  onPlayAgain={() => gameApi.act({ type: 'rematch' })}
                   onClose={gameApi.close}
                   onBackToScreens={() => setShowTable(false)}
                   onSpotlight={onShooterSpotlight}
@@ -1544,8 +1574,8 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
           musicOn={musicOn}
           musicVolume={musicVolume}
           inviteSeq={inviteSeq}
-          sfxBus={shooterView ? shooterBus : null}
-          track={shooterView ? shooterTrack : null}
+          sfxBus={shooterView ? shooterBus : brawlView ? brawlBus : null}
+          track={shooterView ? shooterTrack : brawlView ? brawlTrack : null}
           mics={[
             { id: 'me', stream: state.micStream, muted: micMuted },
             ...state.peers.map((p) => ({ id: p.id, stream: p.mic, muted: p.state.micMuted }))
