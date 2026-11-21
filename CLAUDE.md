@@ -123,7 +123,7 @@ Antes de entregar qualquer mudança: `npm run typecheck && npm test && npx vite 
 
 ## Commits
 
-Padrão `tipo(escopo): descrição` em português, sem ponto final, título até 72 caracteres. Tipos: `feat fix test refactor style perf docs build ci chore revert`. Escopos: `sala tela camera audio controle helper jogos poker golfe xadrez damas magnata truco tiro naval misterio sinuca stop tour jan ui worker deps release`. Detalhes em `docs/COMMITS.md`. O hook `.githooks/commit-msg` e o workflow `commits` recusam mensagens fora do padrão. Escopo novo: atualize `scripts/commit-rules.ts` e a tabela do doc no mesmo commit.
+Padrão `tipo(escopo): descrição` em português, sem ponto final, título até 72 caracteres. Tipos: `feat fix test refactor style perf docs build ci chore revert`. Escopos: `sala tela camera audio controle helper jogos poker golfe xadrez damas magnata truco tiro naval misterio sinuca stop briga tour jan ui worker deps release`. Detalhes em `docs/COMMITS.md`. O hook `.githooks/commit-msg` e o workflow `commits` recusam mensagens fora do padrão. Escopo novo: atualize `scripts/commit-rules.ts` e a tabela do doc no mesmo commit.
 
 ## Fluxo de trabalho
 
