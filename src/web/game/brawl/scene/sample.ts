@@ -44,6 +44,7 @@ export function sampleFighter(slot: number, char: CharacterId, over: Partial<Fig
     dealt: 0,
     prevButtons: 0,
     lastSeq: 0,
+    hist: [],
     ...over
   }
 }
