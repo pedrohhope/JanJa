@@ -9,6 +9,7 @@ import type { PoolEvent } from '../../shared/games/pool/types'
 import type { StopEvent } from '../../shared/games/stop/types'
 import type { TrucoEvent } from '../../shared/games/truco/types'
 import type { TycoonEvent } from '../../shared/games/tycoon/types'
+import type { VelhaEvent } from '../../shared/games/velha/types'
 import type { Card, LegalAction, PokerAction, PokerEvent, PokerMode, PokerView } from '../../shared/games/poker/types'
 import type { MusicTrack, Rect, SfxName } from './contract'
 
@@ -177,6 +178,29 @@ export function checkersTrackForEvent(ev: CheckersEvent): MusicTrack | null {
   if (ev.type === 'start') return 'calma'
   if (ev.type === 'end') return 'vitoria'
   if (ev.type === 'move' && ev.captures >= 2) return 'tensao'
+  return null
+}
+
+/** Som de um evento da Velha ao quadrado: toque da marca, tabuleiro ganho e o fim. */
+export function velhaSfxForEvent(ev: VelhaEvent): SfxCue | null {
+  switch (ev.type) {
+    case 'start':
+      return { name: 'shuffle' }
+    case 'move':
+      if (ev.closed === 'x' || ev.closed === 'o') return { name: 'chip', count: 3 }
+      return { name: 'putt' }
+    case 'draw-offer':
+      return { name: 'check' }
+    case 'end':
+      return ev.result.winner ? { name: 'podium' } : { name: 'win' }
+    default:
+      return null
+  }
+}
+
+export function velhaTrackForEvent(ev: VelhaEvent): MusicTrack | null {
+  if (ev.type === 'start') return 'calma'
+  if (ev.type === 'end') return 'vitoria'
   return null
 }
 

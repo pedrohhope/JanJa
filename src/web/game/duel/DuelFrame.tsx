@@ -8,15 +8,19 @@ const PLATE = 44
 
 interface PlateProps {
   player: DuelPlayerView
-  side: Side
   tone: string
   clock: number | null
   active: boolean
   you: boolean
   extra?: ReactNode
+  sideName: string
 }
 
-function Plate({ player, side, tone, clock, active, you, extra }: PlateProps) {
+/** nome de cada lado na placa e no HUD (xadrez e damas: brancas e pretas; velha: X e O) */
+export type SideNames = Record<Side, string>
+export const CHESS_SIDES: SideNames = { w: 'brancas', b: 'pretas' }
+
+function Plate({ player, tone, clock, active, you, extra, sideName }: PlateProps) {
   const low = clock !== null && clock < 20_000
   return (
     <div className={`chess-plate ${active ? 'active' : ''}`} style={{ height: PLATE }}>
@@ -24,7 +28,7 @@ function Plate({ player, side, tone, clock, active, you, extra }: PlateProps) {
       <span className="chess-plate-name">
         {player.name}
         {you ? ' (você)' : ''}
-        <small className="detail">{player.away ? 'fora da sala' : side === 'w' ? 'brancas' : 'pretas'}</small>
+        <small className="detail">{player.away ? 'fora da sala' : sideName}</small>
       </span>
       <span className="chess-captured">{extra}</span>
       {clock !== null && (
@@ -43,13 +47,14 @@ interface Props {
   captured: (side: Side) => ReactNode
   /** o tabuleiro, no tamanho (px) que cabe */
   children: (size: number) => ReactNode
+  sideNames?: SideNames
 }
 
 /**
  * Moldura dos jogos de tabuleiro para dois (xadrez e damas): placa do outro em cima, a sua embaixo,
  * com nome, capturas e relógio andando; o tabuleiro no meio, quadrado, do maior tamanho que cabe.
  */
-export function DuelFrame({ view, colors, captured, children }: Props) {
+export function DuelFrame({ view, colors, captured, children, sideNames = CHESS_SIDES }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState(320)
   const now = useServerNow(view.serverNow, 250)
@@ -75,12 +80,12 @@ export function DuelFrame({ view, colors, captured, children }: Props) {
     return (
       <Plate
         player={pl}
-        side={c}
         tone={colors[pl.playerId] ?? '#B7A99A'}
         clock={clockOf(c)}
         active={!view.result && view.turn === c}
         you={view.you?.color === c}
         extra={captured(c)}
+        sideName={sideNames[c]}
       />
     )
   }

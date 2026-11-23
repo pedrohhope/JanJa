@@ -13,7 +13,8 @@
  * /dev/briga (BrawlLab): a Briga na Sala com robôs, sem rede (`?arena=telhado&bots=3&char=janja&nivel=dificil&modo=tempo`, `window.__briga`, tecla ` liga as caixas de golpe e o fps);
  * /dev/tycoon (TycoonLab): o Magnata com até 5 bots; /dev/truco (TrucoLab): truco com bots (?n=2, 4 ou 6);
  * /dev/naval (NavalLab): batalha naval contra um bot; /dev/mystery (MysteryLab): Mistério com bots;
- * /dev/pool (PoolLab): sinuca contra um bot; /dev/stop (StopLab): Stop com bots.
+ * /dev/pool (PoolLab): sinuca contra um bot; /dev/stop (StopLab): Stop com bots;
+ * /dev/velha (VelhaLab): Velha ao quadrado contra um bot de lances aleatórios (`?bot=0&min=5`, `window.__velha`).
  */
 import type { ComponentType } from 'react'
 
@@ -35,5 +36,6 @@ export const DEV_ROUTES: DevRoute[] = [
   { path: '/dev/naval', load: () => import('./NavalLab').then((m) => ({ default: m.NavalLab })) },
   { path: '/dev/mystery', load: () => import('./MysteryLab').then((m) => ({ default: m.MysteryLab })) },
   { path: '/dev/pool', load: () => import('./PoolLab').then((m) => ({ default: m.PoolLab })) },
-  { path: '/dev/stop', load: () => import('./StopLab').then((m) => ({ default: m.StopLab })) }
+  { path: '/dev/stop', load: () => import('./StopLab').then((m) => ({ default: m.StopLab })) },
+  { path: '/dev/velha', load: () => import('./VelhaLab').then((m) => ({ default: m.VelhaLab })) }
 ]

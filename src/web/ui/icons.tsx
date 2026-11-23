@@ -182,6 +182,12 @@ const PATHS = {
       <ellipse cx="12" cy="9" rx="4" ry="2" />
     </>
   ),
+  velha: (
+    <>
+      <path d="M9 3.5v17M15 3.5v17M3.5 9h17M3.5 15h17" />
+      <path d="M10.6 10.6l2.8 2.8M13.4 10.6l-2.8 2.8" />
+    </>
+  ),
   dice: (
     <>
       <rect x="3.5" y="3.5" width="17" height="17" rx="3" />

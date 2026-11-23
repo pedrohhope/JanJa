@@ -33,7 +33,7 @@ export function GameLobbyView({ lobby, hasView, api, onClose, onShowTable }: Pro
   const mine = lobby.seats.find((s) => s.you)
   // golfe, Magnata, tiro, briga e Stop falam em "entrar na partida"; os jogos de mesa, em "sentar"
   const joins = lobby.gameId === 'golf' || lobby.gameId === 'tycoon' || lobby.gameId === 'shooter' || lobby.gameId === 'brawl' || lobby.gameId === 'stop'
-  const isChess = lobby.gameId === 'chess' || lobby.gameId === 'checkers'
+  const isChess = lobby.gameId === 'chess' || lobby.gameId === 'checkers' || lobby.gameId === 'velha'
   const label = summarize(lobby.gameId, lobby.options)
   const where = joins || isChess ? 'a partida' : 'a mesa'
   const realtime = lobby.gameId === 'shooter' || lobby.gameId === 'brawl'

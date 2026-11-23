@@ -20,9 +20,10 @@ import { STOP_ROUNDS, STOP_SECONDS } from '../../../shared/games/stop/types'
 import { DEFAULT_SHOOTER_OPTIONS, KILL_LIMITS, MATCH_MINUTES, MAX_BOTS as SHOOTER_MAX_BOTS } from '../../../shared/games/shooter/types'
 import { DEFAULT_TRUCO_OPTIONS } from '../../../shared/games/truco/types'
 import { DEFAULT_TYCOON_OPTIONS } from '../../../shared/games/tycoon/types'
+import { DEFAULT_VELHA_OPTIONS } from '../../../shared/games/velha/types'
 
 /** ícones usados aqui (subconjunto de IconName; fica local porque o tsconfig dos testes não compila TSX) */
-export type IconName = 'cards' | 'flag' | 'pawn' | 'checker' | 'dice' | 'sword' | 'target' | 'fist' | 'anchor' | 'search' | 'eight' | 'pencil' | 'users' | 'clock' | 'crown' | 'focus' | 'grid' | 'chart' | 'mouse' | 'sliders' | 'plus' | 'chat' | 'check' | 'stop' | 'warn'
+export type IconName = 'cards' | 'flag' | 'pawn' | 'checker' | 'dice' | 'sword' | 'target' | 'fist' | 'anchor' | 'search' | 'eight' | 'pencil' | 'velha' | 'users' | 'clock' | 'crown' | 'focus' | 'grid' | 'chart' | 'mouse' | 'sliders' | 'plus' | 'chat' | 'check' | 'stop' | 'warn'
 
 export type GameCategory = 'cartas' | 'tabuleiro' | 'acao'
 /** filtros da vitrine; `rapidos` pega os jogos marcados com `quick` */
@@ -595,6 +596,28 @@ const ENTRIES: Omit<GameEntry, 'channel'>[] = [
       const s = asNum(v.seconds, 120)
       return `${asNum(v.rounds, 5)} rodadas, ${s ? `${s} s cada` : 'sem tempo'}: ${cats.map(categoryName).join(', ')}`
     }
+  },
+  {
+    id: 'velha',
+    name: 'Velha ao quadrado',
+    title: 'Velha ao quadrado',
+    icon: 'velha',
+    line: 'Jogo da velha feito de jogos da velha',
+    description: 'Um jogo da velha grande em que cada casa é um jogo da velha pequeno. A casa em que você joga escolhe onde o outro vai jogar. Quem fica com o X é sorteado.',
+    how: [
+      { icon: 'velha', text: 'Faça três em linha num tabuleiro pequeno para ganhar ele.' },
+      { icon: 'focus', text: 'A casa em que você joga manda o outro para o tabuleiro de mesmo lugar.' },
+      { icon: 'crown', text: 'Ganhe três tabuleiros em linha no grande para vencer.' }
+    ],
+    category: 'tabuleiro',
+    quick: true,
+    people: '2 pessoas',
+    time: '5 a 10 min',
+    bots: false,
+    openLabel: 'Abrir partida',
+    controls: [{ kind: 'segment', key: 'minutes', label: 'Relógio de cada um', icon: 'clock', choices: CLOCK_CHOICES }],
+    defaults: () => ({ ...DEFAULT_VELHA_OPTIONS }),
+    summary: clockSummary
   }
 ]
 

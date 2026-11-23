@@ -14,6 +14,7 @@ import { DEFAULT_TRUCO_OPTIONS } from '../src/shared/games/truco/types'
 import { DEFAULT_TYCOON_OPTIONS } from '../src/shared/games/tycoon/types'
 import { buildOptions, CATALOG, CATALOG_LIST, defaultValues, FILTERS, matchesFilter, summarize, type OptionValues } from '../src/web/ui/games/catalog'
 import { THUMBS } from '../src/web/ui/games/thumbs'
+import { DEFAULT_VELHA_OPTIONS } from '../src/shared/games/velha/types'
 
 const DEFAULTS: Record<GameId, unknown> = {
   poker: DEFAULT_POKER,
@@ -27,7 +28,8 @@ const DEFAULTS: Record<GameId, unknown> = {
   naval: DEFAULT_NAVAL_OPTIONS,
   mystery: {},
   pool: {},
-  stop: { categories: DEFAULT_CATEGORIES, rounds: 5, seconds: 120 }
+  stop: { categories: DEFAULT_CATEGORIES, rounds: 5, seconds: 120 },
+  velha: DEFAULT_VELHA_OPTIONS
 }
 
 const accepts = (id: GameId, options: unknown): boolean => !isGameError(GAMES[id]!.parseOptions(options))

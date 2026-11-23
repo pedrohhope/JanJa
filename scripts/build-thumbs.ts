@@ -27,8 +27,8 @@ const OUT_H = 360
 const QUALITY = 0.78
 const MAX_KB = 45
 
-type GameId = 'poker' | 'golf' | 'chess' | 'checkers' | 'tycoon' | 'truco' | 'shooter' | 'brawl' | 'naval' | 'mystery' | 'pool' | 'stop'
-const ORDER: GameId[] = ['poker', 'golf', 'chess', 'checkers', 'tycoon', 'truco', 'shooter', 'brawl', 'naval', 'mystery', 'pool', 'stop']
+type GameId = 'poker' | 'golf' | 'chess' | 'checkers' | 'tycoon' | 'truco' | 'shooter' | 'brawl' | 'naval' | 'mystery' | 'pool' | 'stop' | 'velha'
+const ORDER: GameId[] = ['poker', 'golf', 'chess', 'checkers', 'tycoon', 'truco', 'shooter', 'brawl', 'naval', 'mystery', 'pool', 'stop', 'velha']
 
 interface Frame {
   /** o que este quadro mostra (vai para o relatório) */
@@ -460,6 +460,35 @@ const PLANS: Record<GameId, Frame[]> = {
           document.querySelector<HTMLButtonElement>('.sp-stop')?.click()
         })
         await sleep(6000)
+      }
+    }
+  ],
+  velha: [
+    {
+      what: 'Velha ao quadrado, começo da partida',
+      url: '/dev/velha?bot=0&min=10&seed=3',
+      run: async (page) => {
+        await settle(page, 800)
+        await lab(page, '__velha', 'random(9)')
+        await sleep(500)
+      }
+    },
+    {
+      what: 'Velha ao quadrado, tabuleiros pequenos já ganhos',
+      url: '/dev/velha?bot=0&min=10&seed=5',
+      run: async (page) => {
+        await settle(page, 800)
+        await lab(page, '__velha', 'random(34)')
+        await sleep(500)
+      }
+    },
+    {
+      what: 'Velha ao quadrado, reta final',
+      url: '/dev/velha?bot=0&min=5&seed=8',
+      run: async (page) => {
+        await settle(page, 800)
+        await ev(page, `for (let i = 0; i < 80; i++) { const s = window.__velha.state(); if (s.result || s.pos.small.filter((x) => x !== null).length >= 5) break; window.__velha.random(1) }`)
+        await sleep(500)
       }
     }
   ]

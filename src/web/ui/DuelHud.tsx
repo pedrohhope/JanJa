@@ -30,6 +30,8 @@ interface Props extends DuelHudCommon {
   /** aviso para leitor de tela quando entra um lance */
   live: string
   onAct: (action: DuelAction) => void
+  /** nome de cada lado (padrão: brancas e pretas) */
+  sideNames?: Record<Side, string>
 }
 
 /** Barra de baixo dos jogos de tabuleiro para dois: vez, empate, desistir, lances e fim de partida. */
@@ -54,7 +56,7 @@ export function DuelHud(p: Props) {
 
   let help: string
   if (view.result) help = p.resultText ?? 'Fim da partida.'
-  else if (!me) help = `Você está assistindo. Vez de ${name(view.turn)} (${view.turn === 'w' ? 'brancas' : 'pretas'}).`
+  else if (!me) help = `Você está assistindo. Vez de ${name(view.turn)} (${(p.sideNames ?? { w: 'brancas', b: 'pretas' })[view.turn]}).`
   else if (myTurn) help = p.yourTurn
   else help = `Vez de ${name(view.turn)}.`
   if (playing && rival?.awayUntil) help += ` ${rival.name} saiu da sala. Se não voltar em ${formatClock(rival.awayUntil - now)}, você vence.`

@@ -13,6 +13,7 @@ import { CamFocus, CamStrip, type CamItem } from './Cams'
 import { ChannelList, DownloadBox, OtherRooms, ServerCard } from './Channels'
 import { ChatPanel, type ChatMode } from './ChatPanel'
 import type { CheckersAction, CheckersView } from '../../shared/games/checkers/types'
+import type { VelhaAction, VelhaView } from '../../shared/games/velha/types'
 import type { ChessAction, ChessView, Promo } from '../../shared/games/chess/types'
 import type { GolfView } from '../../shared/games/golf/types'
 import type { ShooterView } from '../../shared/games/shooter/types'
@@ -29,7 +30,7 @@ import type { EventBatch, MusicTrack, PoolShot, Rect, SceneLayout, SfxName } fro
 import { GameAudioDriver } from '../game/GameAudioDriver'
 import { sameRects, shortcutAction, shouldInvite } from '../game/helpers'
 import { createSfxBus } from '../game/shooter/sfxBus'
-import { loadCheckersScene, loadChessScene, loadGolfScene, loadMysteryScene, loadNavalScene, loadPoolScene, loadScene, loadStopScene, loadTrucoScene, loadTycoonScene } from '../game/loaders'
+import { loadCheckersScene, loadChessScene, loadGolfScene, loadMysteryScene, loadNavalScene, loadPoolScene, loadScene, loadStopScene, loadTrucoScene, loadTycoonScene, loadVelhaScene } from '../game/loaders'
 import { Avatar, toneOf } from './Avatar'
 import { GameInvite } from './GameInvite'
 import { GamesPanel } from './GamesPanel'
@@ -60,6 +61,9 @@ const ChessHudLazy = lazyChunk(() => import('./ChessHud').then((m) => ({ default
 // e o das damas
 const CheckersSceneLazy = lazyChunk(loadCheckersScene)
 const CheckersHudLazy = lazyChunk(() => import('./CheckersHud').then((m) => ({ default: m.CheckersHud })))
+// e o da Velha ao quadrado
+const VelhaSceneLazy = lazyChunk(loadVelhaScene)
+const VelhaHudLazy = lazyChunk(() => import('./VelhaHud').then((m) => ({ default: m.VelhaHud })))
 // e o do Magnata
 const TycoonSceneLazy = lazyChunk(loadTycoonScene)
 const TycoonHudLazy = lazyChunk(() => import('./TycoonHud').then((m) => ({ default: m.TycoonHud })))
@@ -405,6 +409,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   const golfView = gameId === 'golf' && game.view ? (game.view as GolfView) : null
   const chessView = gameId === 'chess' && game.view ? (game.view as ChessView) : null
   const checkersView = gameId === 'checkers' && game.view ? (game.view as CheckersView) : null
+  const velhaView = gameId === 'velha' && game.view ? (game.view as VelhaView) : null
   const tycoonView = gameId === 'tycoon' && game.view ? (game.view as TycoonView) : null
   const trucoView = gameId === 'truco' && game.view ? (game.view as TrucoView) : null
   const navalView = gameId === 'naval' && game.view ? (game.view as NavalView) : null
@@ -425,8 +430,8 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   const brawlBus = useMemo(() => createSfxBus(), [])
   const [brawlTrack, setBrawlTrack] = useState<MusicTrack | null>(null)
   const [shooterTrack, setShooterTrack] = useState<MusicTrack | null>(null)
-  /** jogo de tabuleiro para dois (xadrez ou damas) */
-  const duelView = chessView ?? checkersView
+  /** jogo de tabuleiro para dois (xadrez, damas ou Velha ao quadrado) */
+  const duelView = chessView ?? checkersView ?? velhaView
   const [sceneSfx, setSceneSfx] = useState<{ name: SfxName; n: number } | null>(null)
   const onGolfSfx = useCallback((name: SfxName) => setSceneSfx((s) => ({ name, n: (s?.n ?? 0) + 1 })), [])
   const golfRef = useRef(golfView)
@@ -488,6 +493,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
     [gameApi]
   )
   const onCheckersMove = useCallback((path: string[]) => gameApi.act({ type: 'move', path } satisfies CheckersAction), [gameApi])
+  const onVelhaMove = useCallback((board: number, cell: number) => gameApi.act({ type: 'move', board, cell } satisfies VelhaAction), [gameApi])
   /** tacada da sinuca: vai com o número de tacadas que a pessoa viu (`ref`) */
   const onPoolShoot = useCallback(
     (shot: PoolShot) => {
@@ -1033,6 +1039,19 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
                 </Suspense>
               </div>
             )}
+            {tableMode && velhaView && (
+              <div className="scene-host chess-host">
+                <Suspense
+                  fallback={
+                    <div className="scene-loading">
+                      <TvOff noise />
+                    </div>
+                  }
+                >
+                  <VelhaSceneLazy view={velhaView} colors={colors} reducedMotion={reducedMotion} onMove={onVelhaMove} />
+                </Suspense>
+              </div>
+            )}
             {tableMode && tycoonView && (
               <div className="scene-host chess-host">
                 <Suspense
@@ -1263,6 +1282,26 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
                   const options = game.lobby?.options
                   gameApi.close()
                   gameApi.open('checkers', options)
+                }}
+                onClose={gameApi.close}
+                onBackToScreens={() => setShowTable(false)}
+                musicOn={musicOn}
+                musicVolume={musicVolume}
+                onMusicOn={toggleMusic}
+                onMusicVolume={changeMusicVolume}
+              />
+            </Suspense>
+          )}
+          {tableMode && velhaView && (
+            <Suspense fallback={null}>
+              <VelhaHudLazy
+                view={velhaView}
+                canManage={!!game.lobby?.canManage}
+                onAct={gameApi.act}
+                onPlayAgain={() => {
+                  const options = game.lobby?.options
+                  gameApi.close()
+                  gameApi.open('velha', options)
                 }}
                 onClose={gameApi.close}
                 onBackToScreens={() => setShowTable(false)}

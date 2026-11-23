@@ -10,6 +10,7 @@ import type { PoolEvent } from '../../shared/games/pool/types'
 import type { StopEvent } from '../../shared/games/stop/types'
 import type { TrucoEvent } from '../../shared/games/truco/types'
 import type { TycoonEvent } from '../../shared/games/tycoon/types'
+import type { VelhaEvent } from '../../shared/games/velha/types'
 import type { GameId } from '../../shared/games/protocol'
 import { BRAWL_SFX, SHOOTER_SFX, type GameAudio, type MusicTrack, type RawEventBatch, type SfxName } from './contract'
 import { sfxGate, type SfxBus } from './shooter/sfxBus'
@@ -27,6 +28,8 @@ import {
   poolTrackForEvent,
   stopSfxForEvent,
   stopTrackForEvent,
+  velhaSfxForEvent,
+  velhaTrackForEvent,
   navalTrackForEvent,
   golfSfxForEvent,
   golfTrackForEvent,
@@ -57,6 +60,7 @@ function cueFor(gameId: GameId, ev: unknown): SfxCue | null {
   if (gameId === 'mystery') return mysterySfxForEvent(ev as MysteryEvent)
   if (gameId === 'pool') return poolSfxForEvent(ev as PoolEvent)
   if (gameId === 'stop') return stopSfxForEvent(ev as StopEvent)
+  if (gameId === 'velha') return velhaSfxForEvent(ev as VelhaEvent)
   return sfxForEvent(ev as PokerEvent)
 }
 
@@ -70,6 +74,7 @@ function trackFor(gameId: GameId, ev: unknown): MusicTrack | null {
   if (gameId === 'mystery') return mysteryTrackForEvent(ev as MysteryEvent)
   if (gameId === 'pool') return poolTrackForEvent(ev as PoolEvent)
   if (gameId === 'stop') return stopTrackForEvent(ev as StopEvent)
+  if (gameId === 'velha') return velhaTrackForEvent(ev as VelhaEvent)
   return trackForEvent(ev as PokerEvent)
 }
 

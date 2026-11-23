@@ -59,6 +59,7 @@ chore(release): helper 0.1.3
 | `misterio` | Mistério: cartas, palpites, caderno, HUD |
 | `sinuca` | sinuca: física, regras da bola 8, mesa, HUD |
 | `stop` | Stop (adedonha): letras, categorias, conferência, HUD |
+| `velha` | Velha ao quadrado: regras, tabuleiro, HUD |
 | `tour` | tour guiado |
 | `jan` | o mascote Jan |
 | `ui` | visual geral, tela inicial, componentes |
