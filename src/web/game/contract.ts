@@ -146,6 +146,7 @@ export interface PoolShot {
   dx: number
   dy: number
   power: number
+  spin?: { x: number; y: number }
   cue?: { x: number; y: number }
   pocket?: number
 }
@@ -157,6 +158,9 @@ export interface PoolSceneProps {
   onShoot: (shot: PoolShot) => void
   /** som da simulação local (bola caindo na caçapa) */
   onSfx?: (name: SfxName) => void
+  /** repasse pela sala (mira ao vivo): manda para '**' e escuta o de quem joga */
+  relay?: (to: string, data: string) => void
+  onRelay?: (cb: (from: string, data: string) => void) => () => void
 }
 
 /** Stop (HTML): campos das categorias e a conferência. As respostas são salvas sozinhas. */

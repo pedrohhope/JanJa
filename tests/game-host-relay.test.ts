@@ -115,6 +115,17 @@ describe('game-relay', () => {
     expect(fora.relays()).toHaveLength(0)
   })
 
+  it('"**" vai para a sala toda (quem assiste também) menos quem mandou', async () => {
+    const { ana, bia, cau, fora } = await started()
+    await ana.say({ type: 'game-relay', to: '**', data: 'pool:{}' })
+    expect(bia.relays()).toHaveLength(1)
+    expect(cau.relays()).toHaveLength(1)
+    expect(fora.relays()).toEqual([{ type: 'game-relay', from: ana.playerId(), data: 'pool:{}' }])
+    expect(ana.relays()).toHaveLength(0)
+    await fora.say({ type: 'game-relay', to: '**', data: 'x' })
+    expect(ana.relays()).toHaveLength(0)
+  })
+
   it('quem não está sentado é ignorado, sem erro; destino desconhecido também', async () => {
     const { ana, bia, fora } = await started()
     await fora.say({ type: 'game-relay', to: ana.playerId(), data: 'x' })

@@ -4,7 +4,7 @@
  * navegadores animarem. Nada é escondido: todos veem a mesa.
  */
 import type { GameCtx, GameError, PlayerRef, Step } from '../types'
-import { canPlace, cloneBalls, POCKETS, simulate, TABLE_H, TABLE_W, type PBall } from './physics'
+import { canPlace, clampSpin, cloneBalls, POCKETS, simulate, TABLE_H, TABLE_W, type PBall } from './physics'
 import { ballsOf, FOOT, freeSpot, groupOf, HEAD, HEAD_X, other, rack, type Group } from './rules'
 import { AWAY_MS, SHOT_MS, type PoolAction, type PoolEvent, type PoolOptions, type PoolShotView, type PoolView } from './types'
 
@@ -62,9 +62,9 @@ function shoot(s: PoolState, i: number, a: PoolAction, now: number, events: Pool
     cue.in = false
   }
   const before = cloneBalls(s.balls)
-  const { balls, log } = simulate(before, a.dx, a.dy, a.power)
+  const { balls, log } = simulate(before, a.dx, a.dy, a.power, a.spin)
   s.ref++
-  s.shot = { ref: s.ref, by: i, before, dx: a.dx, dy: a.dy, power: a.power, after: cloneBalls(balls) }
+  s.shot = { ref: s.ref, by: i, before, dx: a.dx, dy: a.dy, power: a.power, ...(a.spin ? { spin: a.spin } : {}), after: cloneBalls(balls) }
   s.balls = balls
   s.broken = true
   events.push({ type: 'shot', by: i, power: a.power })
@@ -147,6 +147,12 @@ export function parseAction(raw: unknown): PoolAction | GameError {
     const c = a.cue as Record<string, unknown>
     if (typeof c !== 'object' || !c || !num(c.x) || !num(c.y)) return err('acao-invalida', 'Posição da branca inválida.')
     out.cue = { x: c.x, y: c.y }
+  }
+  if (a.spin !== undefined) {
+    const sp = a.spin as Record<string, unknown>
+    if (typeof sp !== 'object' || !sp || !num(sp.x) || !num(sp.y) || Math.abs(sp.x) > 2 || Math.abs(sp.y) > 2) return err('acao-invalida', 'Efeito inválido.')
+    const c = clampSpin({ x: sp.x, y: sp.y })
+    if (c.x !== 0 || c.y !== 0) out.spin = c
   }
   if (a.pocket !== undefined) {
     if (!num(a.pocket) || !Number.isInteger(a.pocket) || a.pocket < 0 || a.pocket >= POCKETS.length) return err('acao-invalida', 'Caçapa inválida.')

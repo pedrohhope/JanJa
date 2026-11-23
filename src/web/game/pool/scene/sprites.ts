@@ -10,12 +10,18 @@ export const BALL_COLORS = ['#FFC94A', '#4F7FD9', '#E05A4A', '#9A6AD0', '#F08A3C
 
 export const TABLE_COLORS = {
   felt: '#2F6B4C',
-  feltDark: '#285D42',
+  feltDark: '#2A6245',
+  feltLight: '#357353',
+  feltShade: '#285D42',
   cushion: '#24543B',
+  cushionLight: '#2E6449',
   wood: '#6E4A36',
   woodDark: '#4E3426',
   woodLight: '#8A5E44',
+  woodGrain: '#634230',
+  leather: '#2A1D16',
   pocket: '#0F0B09',
+  pocketDeep: '#060403',
   diamond: '#F3EBDD',
   line: '#3E7D5C'
 }

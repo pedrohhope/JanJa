@@ -838,6 +838,15 @@ button.my-card { --bg: var(--paper); --bg-h: #fff; --bd: var(--rug); --bd-h: var
 .pl-canvas:focus-visible { box-shadow: 0 0 0 2px var(--lamp), 0 12px 32px rgba(0, 0, 0, 0.5); }
 .pl-tips { display: flex; align-items: center; gap: 12px; min-height: 36px; color: var(--dust); font-size: 13px; }
 .pl-eight { color: var(--lamp); }
+.pl-spin { display: flex; align-items: center; gap: 8px; }
+.pl-spin-ball { position: relative; width: 44px; height: 44px; border-radius: 50%; background: var(--paper); box-shadow: inset -4px -5px 0 rgba(0, 0, 0, 0.18), 0 0 0 2px #120D0B; cursor: crosshair; touch-action: none; outline: none; }
+.pl-spin-ball:focus-visible { box-shadow: inset -4px -5px 0 rgba(0, 0, 0, 0.18), 0 0 0 2px #120D0B, 0 0 0 4px var(--lamp); }
+.pl-spin-cross { position: absolute; inset: 50% 6px auto; height: 1px; background: rgba(34, 28, 25, 0.25); }
+.pl-spin-cross::after { content: ''; position: absolute; left: 50%; top: -15px; width: 1px; height: 31px; background: rgba(34, 28, 25, 0.25); }
+.pl-spin-dot { position: absolute; left: calc(50% - 4px); top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: #C8483A; box-shadow: 0 0 0 1px #120D0B; pointer-events: none; transition: transform 80ms; }
+.pl-spin.off .pl-spin-ball { cursor: default; opacity: 0.75; }
+.pl-spin-text { display: flex; flex-direction: column; min-width: 92px; color: var(--paper); font-size: 13px; }
+.pl-spin-text small { color: var(--dust); font-size: 11px; }
 .pl-players { display: flex; gap: 10px; flex-wrap: wrap; }
 .pl-player { display: flex; flex-direction: column; gap: 2px; padding: 4px 10px; border-radius: var(--r-ctl); background: var(--wall); border: 1px solid var(--rug); font-size: 13px; }
 .pl-player.turn { border-color: var(--lamp); }

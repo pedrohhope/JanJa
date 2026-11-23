@@ -1,4 +1,4 @@
-import type { PBall } from './physics'
+import type { PBall, Spin } from './physics'
 import type { Group } from './rules'
 
 export type PoolOptions = Record<string, never>
@@ -14,6 +14,8 @@ export interface PoolAction {
   dy: number
   /** 0 a 1 */
   power: number
+  /** efeito na branca (ausente = no meio) */
+  spin?: Spin
   /** bola na mão: onde a branca fica antes da tacada */
   cue?: { x: number; y: number }
   /** na bola 8: a caçapa escolhida (0..5) */
@@ -38,6 +40,7 @@ export interface PoolShotView {
   dx: number
   dy: number
   power: number
+  spin?: Spin
   after: PBall[]
 }
 

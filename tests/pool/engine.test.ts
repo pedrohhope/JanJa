@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { apply, autoShot, nextDeadline, setPresence, setup, tick, view, type PoolState } from '../../src/shared/games/pool/engine'
+import { apply, autoShot, nextDeadline, parseAction, setPresence, setup, tick, view, type PoolState } from '../../src/shared/games/pool/engine'
 import type { PBall } from '../../src/shared/games/pool/physics'
 import { rack } from '../../src/shared/games/pool/rules'
 import { AWAY_MS, SHOT_MS, type PoolAction } from '../../src/shared/games/pool/types'
@@ -126,5 +126,17 @@ describe('regras da bola 8', () => {
     const t = tick(s, ctx(T0 + SHOT_MS)).state
     expect(t.ref).toBe(1)
     expect(setPresence(s, 'a', false, ctx(T0 + 10)).state.until).toBe(T0 + 10 + AWAY_MS)
+  })
+
+  it('efeito: vai na tacada e na visão; fora do limite é cortado; inválido é recusado', () => {
+    const a = parseAction({ type: 'shoot', dx: 1, dy: 0, power: 0.5, ref: 0, spin: { x: 0, y: -2 } })
+    expect(isGameError(a)).toBe(false)
+    expect((a as PoolAction).spin).toEqual({ x: 0, y: -1 })
+    expect(isGameError(parseAction({ type: 'shoot', dx: 1, dy: 0, power: 0.5, ref: 0, spin: { x: 'a', y: 0 } }))).toBe(true)
+    expect((parseAction({ type: 'shoot', dx: 1, dy: 0, power: 0.5, ref: 0, spin: { x: 0, y: 0 } }) as PoolAction).spin).toBeUndefined()
+    const s = table([ball(0, 20, 25), ball(1, 30, 25), ...PARK])
+    const r = shoot(s, 'a', { dx: 1, dy: 0, power: 0.3, spin: { x: 0, y: -1 } })
+    expect(r.state.shot?.spin).toEqual({ x: 0, y: -1 })
+    expect(r.state.balls.find((b) => b.id === 0)!.x).toBeLessThan(20)
   })
 })

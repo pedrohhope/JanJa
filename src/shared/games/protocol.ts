@@ -29,7 +29,8 @@ export const GameClientMessageSchemas = [
   z.object({ type: z.literal('game-close') }),
   /**
    * Repasse de pacotes de jogo em tempo real (tiro) quando não há canal P2P com o host.
-   * `to` = playerId de destino ou '*' (todos os sentados). `data` = pacote binário em base64.
+   * `to` = playerId de destino, '*' (todos os sentados) ou '**' (a sala toda, quem assiste também: mira da sinuca).
+   * `data` = pacote binário em base64 (ou texto com prefixo do jogo).
    * O servidor só repassa (não guarda nem lê) e descarta o excesso acima de RELAY_MAX_PER_SEC.
    */
   z.object({ type: z.literal('game-relay'), to: z.string().min(1).max(64), data: z.string().max(RELAY_MAX_DATA) })

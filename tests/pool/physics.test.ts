@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aimGuide, canPlace, newLog, R, simulate, step, strike, TABLE_H, TABLE_W, type PBall } from '../../src/shared/games/pool/physics'
+import { aimGuide, canPlace, clampSpin, newLog, R, simulate, step, strike, TABLE_H, TABLE_W, type PBall } from '../../src/shared/games/pool/physics'
 import { rack } from '../../src/shared/games/pool/rules'
 import { seededRng } from '../../src/shared/games/types'
 
@@ -13,13 +13,32 @@ describe('física da sinuca', () => {
     expect(r.log.pocketed.find((p) => p.id === 1)?.pocket).toBe(0)
   })
 
-  it('choque de frente: a branca para e a outra segue', () => {
-    const r = simulate([ball(0, 30, 25), ball(5, 40, 25)], 1, 0, 0.15)
-    const cue = r.balls.find((b) => b.id === 0)!
-    const five = r.balls.find((b) => b.id === 5)!
-    expect(cue.x).toBeLessThan(42)
-    expect(five.x).toBeGreaterThan(45)
-    expect(Math.abs(five.y - 25)).toBeLessThan(0.01)
+  it('choque de frente: a outra segue reta; com puxada a branca volta, com seguida ela vai atrás', () => {
+    const shot = (y: number) => {
+      const r = simulate([ball(0, 30, 25), ball(5, 40, 25)], 1, 0, 0.15, { x: 0, y })
+      return { cue: r.balls.find((b) => b.id === 0)!, five: r.balls.find((b) => b.id === 5)! }
+    }
+    const center = shot(0)
+    expect(center.five.x).toBeGreaterThan(45)
+    expect(Math.abs(center.five.y - 25)).toBeLessThan(0.01)
+    // tacada no meio: a branca rola um pouco atrás, bem menos que a outra
+    expect(center.cue.x).toBeLessThan(center.five.x - 20)
+    expect(shot(-1).cue.x).toBeLessThan(33)
+    expect(shot(1).cue.x).toBeGreaterThan(center.cue.x + 5)
+    // as bolas guardadas não levam giro
+    expect(Object.keys(center.cue).sort()).toEqual(['id', 'in', 'vx', 'vy', 'x', 'y'])
+  })
+
+  it('efeito lateral entorta a volta da tabela para o lado do efeito', () => {
+    const go = (x: number) => simulate([ball(0, 30, 25)], 0, -1, 0.4, { x, y: 0 }).balls[0].x
+    expect(go(0)).toBeCloseTo(30, 5)
+    expect(go(1)).toBeGreaterThan(35)
+    expect(go(-0.4)).toBeLessThan(25)
+  })
+
+  it('efeito acima de 1 é limitado', () => {
+    expect(clampSpin({ x: 3, y: 4 })).toEqual({ x: 0.6, y: 0.8 })
+    expect(clampSpin(undefined)).toEqual({ x: 0, y: 0 })
   })
 
   it('bate na tabela e volta; não sai da mesa', () => {
@@ -67,6 +86,16 @@ describe('física da sinuca', () => {
     const len = Math.hypot(three.vx, three.vy)
     expect(three.vx / len).toBeCloseTo(g.object!.x, 1)
     expect(three.vy / len).toBeCloseTo(g.object!.y, 1)
+  })
+
+  it('a mira mostra a branca voltando com puxada, seguindo com seguida, e a volta da tabela', () => {
+    const balls = [ball(0, 20, 25), ball(3, 30, 25)]
+    expect(aimGuide(balls, 1, 0, { x: 0, y: -1 }, 0.5)!.cue!.x).toBeCloseTo(-1, 5)
+    expect(aimGuide(balls, 1, 0, { x: 0, y: 1 }, 0.5)!.cue!.x).toBeCloseTo(1, 5)
+    const rail = aimGuide([ball(0, 30, 25), ball(5, 78, 25)], 1, -1)!
+    expect(rail.hit).toBeNull()
+    expect(rail.ghost.y).toBeCloseTo(R, 5)
+    expect(rail.bounce?.hit).toBe(5)
   })
 
   it('não dá para pôr a branca em cima de outra bola nem fora da mesa', () => {

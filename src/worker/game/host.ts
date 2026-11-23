@@ -239,7 +239,7 @@ export class GameHost {
     }
   }
 
-  /** Repasse em tempo real: só entre sentados de uma partida iniciada; nada é guardado nem respondido com erro. */
+  /** Repasse em tempo real: de quem está sentado numa partida iniciada; nada é guardado nem respondido com erro. */
   private relay(s: GameSnapshot | undefined, conn: HostConn, to: string, data: string): void {
     if (!s || !s.started) return
     const seat = this.seatOf(s, conn)
@@ -255,6 +255,11 @@ export class GameHost {
       if (++w.count > RELAY_MAX_PER_SEC) return
     }
     const msg: ServerMessage = { type: 'game-relay', from: seat.playerId, data }
+    if (to === '**') {
+      // todos da sala (quem assiste também), menos quem mandou
+      for (const c of this.conns()) if (identityOf(c) !== seat.clientId) c.send(msg)
+      return
+    }
     const targets = s.seats.filter((x) => (to === '*' ? x.playerId !== seat.playerId : x.playerId === to && x.playerId !== seat.playerId))
     for (const t of targets) {
       for (const c of this.conns()) if (identityOf(c) === t.clientId) c.send(msg)

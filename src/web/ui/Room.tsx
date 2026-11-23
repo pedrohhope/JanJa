@@ -1081,7 +1081,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
                     </div>
                   }
                 >
-                  <PoolSceneLazy view={poolView} reducedMotion={reducedMotion} onShoot={onPoolShoot} onSfx={onGolfSfx} />
+                  <PoolSceneLazy view={poolView} reducedMotion={reducedMotion} onShoot={onPoolShoot} onSfx={onGolfSfx} relay={gameApi.relay} onRelay={gameApi.onRelay} />
                 </Suspense>
               </div>
             )}

@@ -3,6 +3,7 @@ import { ballsOf } from '../../shared/games/pool/rules'
 import type { PoolView } from '../../shared/games/pool/types'
 import { ballFill, ballGrid } from '../game/pool/scene/sprites'
 import { formatClock } from '../game/helpers'
+import { useInputDevice } from '../game/useInputDevice'
 import { useServerNow } from '../game/useServerNow'
 import { Icon } from './icons'
 import { VolumeSlider } from './media'
@@ -36,17 +37,21 @@ export function PoolHud(p: Props) {
   const left = view.until !== null ? view.until - now : null
   const myTurn = me !== null && view.turn === me
   const onTable = new Set(view.balls.filter((b) => !b.in).map((b) => b.id))
+  const touch = useInputDevice().device === 'toque'
 
   let help: string
   if (view.winner !== null) help = view.log[view.log.length - 1] ?? ''
   else if (myTurn) {
+    const shoot = touch ? 'toque para mirar, arraste para trás e solte para tacar' : 'mire, clique e puxe para trás para dar força e solte'
     help = view.behindLine
-      ? 'Quebra: clique atrás da linha para pôr a branca, mire e segure para dar força.'
+      ? `Quebra: ponha a branca atrás da linha, ${shoot}.`
       : view.ballInHand
-        ? 'Bola na mão: clique onde a branca vai ficar, mire e tacada.'
+        ? `Bola na mão: ponha a branca onde quiser, ${shoot}.`
         : view.onEight
           ? 'Agora é a 8: escolha a caçapa e mate a 8 nela.'
-          : 'Mire com o mouse (ou setas), segure o clique (ou Espaço) para dar força e solte.'
+          : touch
+            ? 'Toque para mirar, arraste para trás para dar força e solte. O efeito fica embaixo da mesa.'
+            : 'Mire com o mouse (ou setas), clique e puxe para trás para dar força e solte. Efeito: W A S D.'
   } else help = view.result ?? `Vez de ${name(view.turn ?? 0)}.`
 
   return (
