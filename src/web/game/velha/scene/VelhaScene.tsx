@@ -1,16 +1,10 @@
-import { useState, type KeyboardEvent, type ReactElement } from 'react'
+import { useState, type KeyboardEvent, type PointerEvent, type ReactElement } from 'react'
 import { boardName, spotName, type Mark } from '../../../../shared/games/velha/rules'
 import { markOf } from '../../../../shared/games/velha/types'
 import type { VelhaSceneProps } from '../../contract'
 import { DuelFrame, type SideNames } from '../../duel/DuelFrame'
+import { BOARD, boardX, boardY, CELL, cellAt, cellX, cellY, SMALL } from './geometry'
 import { MARK_PX, markRuns } from './pixel'
-
-/** tamanho de uma casinha, do vão entre tabuleiros e da borda (unidades do SVG) */
-const CELL = 10
-const GAP = 4
-const PAD = 3
-const SMALL = CELL * 3
-const BOARD = 2 * PAD + 3 * SMALL + 2 * GAP
 
 const SIDES: SideNames = { w: 'X', b: 'O' }
 const COLORS = {
@@ -21,12 +15,6 @@ const COLORS = {
   lamp: '#FFC94A',
   dim: '#221C19'
 }
-
-/** canto de cima à esquerda do tabuleiro pequeno `b` */
-const boardX = (b: number) => PAD + (b % 3) * (SMALL + GAP)
-const boardY = (b: number) => PAD + Math.floor(b / 3) * (SMALL + GAP)
-const cellX = (b: number, c: number) => boardX(b) + (c % 3) * CELL
-const cellY = (b: number, c: number) => boardY(b) + Math.floor(c / 3) * CELL
 
 /** casa na posição (x, y) da grade 9x9 */
 const fromGrid = (x: number, y: number) => ({ board: Math.floor(y / 3) * 3 + Math.floor(x / 3), cell: (y % 3) * 3 + (x % 3) })
@@ -64,6 +52,21 @@ export function VelhaScene({ view, colors, reducedMotion, onMove }: VelhaScenePr
     if (myTurn && isLegal(b, c)) onMove(b, c)
   }
 
+  /** casa sob o ponteiro, pela posição no tabuleiro inteiro (nada desenhado por cima rouba o clique) */
+  const pointAt = (e: PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return cellAt(((e.clientX - r.left) / r.width) * BOARD, ((e.clientY - r.top) / r.height) * BOARD)
+  }
+  const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
+    const at = pointAt(e)
+    if (at?.board !== hover?.board || at?.cell !== hover?.cell) setHover(at)
+  }
+  const onPointerUp = (e: PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return
+    const at = pointAt(e)
+    if (at) play(at.board, at.cell)
+  }
+
   const onKey = (e: KeyboardEvent<SVGSVGElement>) => {
     const d: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
     if (d[e.key] || e.key === 'Enter' || e.key === ' ') setFocused(true)
@@ -98,7 +101,7 @@ export function VelhaScene({ view, colors, reducedMotion, onMove }: VelhaScenePr
       {(size) => (
         <>
           <svg
-            className={`chess-board velha-board ${myTurn ? 'my-turn' : ''}`}
+            className={`chess-board velha-board ${myTurn ? 'my-turn' : ''} ${myTurn && hover && isLegal(hover.board, hover.cell) ? 'can' : ''}`}
             viewBox={`0 0 ${BOARD} ${BOARD}`}
             width={size}
             height={size}
@@ -109,6 +112,8 @@ export function VelhaScene({ view, colors, reducedMotion, onMove }: VelhaScenePr
             onKeyDown={onKey}
             onFocus={(e) => setFocused(e.currentTarget.matches(':focus-visible'))}
             onBlur={() => setFocused(false)}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
             onPointerLeave={() => setHover(null)}
           >
             <rect x={0} y={0} width={BOARD} height={BOARD} fill={COLORS.bg} />
@@ -126,12 +131,11 @@ export function VelhaScene({ view, colors, reducedMotion, onMove }: VelhaScenePr
                       <rect x={bx + 1.5} y={by + k * CELL - 0.25} width={SMALL - 3} height={0.5} />
                     </g>
                   ))}
-                  {/* casas: clique */}
+                  {/* casas: a marca e o último lance (o clique é tratado no SVG inteiro) */}
                   {view.board[b].map((m, c) => {
                     const x = cellX(b, c)
                     const y = cellY(b, c)
                     const isLast = last && last.board === b && last.cell === c
-                    const can = myTurn && isLegal(b, c)
                     return (
                       <g key={c}>
                         {isLast && <rect x={x + 0.5} y={y + 0.5} width={CELL - 1} height={CELL - 1} fill={COLORS.lamp} opacity={0.22} />}
@@ -145,16 +149,7 @@ export function VelhaScene({ view, colors, reducedMotion, onMove }: VelhaScenePr
                             className={isLast && !reducedMotion ? 'velha-pop' : undefined}
                           />
                         )}
-                        <rect
-                          x={x}
-                          y={y}
-                          width={CELL}
-                          height={CELL}
-                          fill="transparent"
-                          className={can ? 'velha-cell can' : 'velha-cell'}
-                          onPointerEnter={() => setHover({ board: b, cell: c })}
-                          onClick={() => play(b, c)}
-                        />
+
                       </g>
                     )
                   })}

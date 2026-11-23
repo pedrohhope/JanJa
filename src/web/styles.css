@@ -716,8 +716,8 @@ button.link:hover:not(:disabled) { --fg: var(--paper); }
 @media (prefers-reduced-motion: reduce) { .ty-pawn { transition: none; } .ty-pawn.turn, .ty-die.roll { animation: none; } }
 
 /* velha ao quadrado: as casas que valem mostram a mão; a marca nova e o tabuleiro ganho entram com um pulo */
-.velha-cell.can { cursor: pointer; }
-.velha-board:not(.my-turn) .velha-cell { cursor: default; }
+.velha-board, .velha-board.my-turn { cursor: default; }
+.velha-board.can { cursor: pointer; }
 .velha-pop { animation: velha-pop 0.2s var(--ease) both; transform-box: fill-box; transform-origin: center; }
 @keyframes velha-pop { from { opacity: 0; scale: 0.4; } }
 .velha-count { font-size: 12px; color: var(--dust); white-space: nowrap; }
