@@ -105,6 +105,8 @@ export interface Prefs {
   screenRoute: RoutePref
   /** truco: painel com a ordem das cartas e as regras aberto ao lado da mesa */
   trucoGuide: boolean
+  /** xadrez: tabuleiro em 3D em vez de visto de cima */
+  chess3d: boolean
 }
 
 /** Valor salvo que não é uma rota conhecida (versão antiga, edição à mão) volta para o automático. */
@@ -131,6 +133,7 @@ const DEFAULT_PREFS: Prefs = {
   chatMode: 'coluna',
   screenRoute: 'auto',
   trucoGuide: true,
+  chess3d: false,
   micNoiseSuppression: true,
   micGate: 0
 }

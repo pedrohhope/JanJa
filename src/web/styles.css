@@ -652,6 +652,15 @@ button.link:hover:not(:disabled) { --fg: var(--paper); }
 .chess-clock { margin-left: auto; padding: 4px 10px; border-radius: var(--r-ctl); background: var(--sofa); border: 1px solid var(--rug); color: var(--dust); font-size: 20px; font-variant-numeric: tabular-nums; }
 .chess-clock.on { color: var(--wall); background: var(--paper); border-color: var(--paper); }
 .chess-clock.on.low { background: var(--off); border-color: var(--off); }
+.chess-view-toggle { position: absolute; top: 0; left: calc(100% + 10px); display: flex; flex-direction: column; gap: 4px; z-index: 3; }
+.chess-view-toggle button { --bg: var(--sofa); --bd: var(--rug); --fg: var(--dust); height: 30px; min-width: 38px; padding: 0 8px; font-family: 'Pixelify Sans Variable', 'Pixelify Sans', monospace; font-size: 14px; }
+.chess-view-toggle button.on { --bg: var(--lamp); --bg-h: var(--lamp-hi); --bd: var(--lamp); --fg: var(--wall); }
+@media (max-width: 760px) { .chess-view-toggle { left: auto; right: 4px; top: 4px; flex-direction: row; } }
+.chess3d-wrap { outline: none; }
+.chess3d-wrap:focus-visible { box-shadow: 0 0 0 2px var(--lamp); }
+.chess3d { position: relative; display: block; }
+.chess3d-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; touch-action: none; cursor: grab; }
+.chess3d-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dust); }
 .chess-promo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(34, 28, 25, 0.82); z-index: 2; }
 .chess-promo-row { display: flex; gap: 8px; }
 .chess-promo-row button { --bg: var(--sofa); --bg-h: var(--rug); --bd: var(--rug); --bd-h: var(--lamp); padding: 4px; height: auto; }
