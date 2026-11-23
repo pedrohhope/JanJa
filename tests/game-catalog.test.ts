@@ -29,7 +29,8 @@ const DEFAULTS: Record<GameId, unknown> = {
   mystery: {},
   pool: {},
   stop: { categories: DEFAULT_CATEGORIES, rounds: 5, seconds: 120 },
-  velha: DEFAULT_VELHA_OPTIONS
+  velha: DEFAULT_VELHA_OPTIONS,
+  pife: {}
 }
 
 const accepts = (id: GameId, options: unknown): boolean => !isGameError(GAMES[id]!.parseOptions(options))

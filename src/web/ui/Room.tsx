@@ -14,6 +14,7 @@ import { ChannelList, DownloadBox, OtherRooms, ServerCard } from './Channels'
 import { ChatPanel, type ChatMode } from './ChatPanel'
 import type { CheckersAction, CheckersView } from '../../shared/games/checkers/types'
 import type { VelhaAction, VelhaView } from '../../shared/games/velha/types'
+import type { PifeAction, PifeIntent, PifeView } from '../../shared/games/pife/types'
 import type { ChessAction, ChessView, Promo } from '../../shared/games/chess/types'
 import type { GolfView } from '../../shared/games/golf/types'
 import type { ShooterView } from '../../shared/games/shooter/types'
@@ -30,7 +31,7 @@ import type { EventBatch, MusicTrack, PoolShot, Rect, SceneLayout, SfxName } fro
 import { GameAudioDriver } from '../game/GameAudioDriver'
 import { sameRects, shortcutAction, shouldInvite } from '../game/helpers'
 import { createSfxBus } from '../game/shooter/sfxBus'
-import { loadCheckersScene, loadChessScene, loadGolfScene, loadMysteryScene, loadNavalScene, loadPoolScene, loadScene, loadStopScene, loadTrucoScene, loadTycoonScene, loadVelhaScene } from '../game/loaders'
+import { loadCheckersScene, loadChessScene, loadGolfScene, loadMysteryScene, loadNavalScene, loadPoolScene, loadScene, loadStopScene, loadTrucoScene, loadTycoonScene, loadVelhaScene, loadPifeScene } from '../game/loaders'
 import { Avatar, toneOf } from './Avatar'
 import { GameInvite } from './GameInvite'
 import { GamesPanel } from './GamesPanel'
@@ -64,6 +65,9 @@ const CheckersHudLazy = lazyChunk(() => import('./CheckersHud').then((m) => ({ d
 // e o da Velha ao quadrado
 const VelhaSceneLazy = lazyChunk(loadVelhaScene)
 const VelhaHudLazy = lazyChunk(() => import('./VelhaHud').then((m) => ({ default: m.VelhaHud })))
+// e o do pife
+const PifeSceneLazy = lazyChunk(loadPifeScene)
+const PifeHudLazy = lazyChunk(() => import('./PifeHud').then((m) => ({ default: m.PifeHud })))
 // e o do Magnata
 const TycoonSceneLazy = lazyChunk(loadTycoonScene)
 const TycoonHudLazy = lazyChunk(() => import('./TycoonHud').then((m) => ({ default: m.TycoonHud })))
@@ -410,6 +414,9 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   const chessView = gameId === 'chess' && game.view ? (game.view as ChessView) : null
   const checkersView = gameId === 'checkers' && game.view ? (game.view as CheckersView) : null
   const velhaView = gameId === 'velha' && game.view ? (game.view as VelhaView) : null
+  const pifeView = gameId === 'pife' && game.view ? (game.view as PifeView) : null
+  const pifeRef = useRef(pifeView)
+  pifeRef.current = pifeView
   const tycoonView = gameId === 'tycoon' && game.view ? (game.view as TycoonView) : null
   const trucoView = gameId === 'truco' && game.view ? (game.view as TrucoView) : null
   const navalView = gameId === 'naval' && game.view ? (game.view as NavalView) : null
@@ -450,7 +457,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
   const ghostStyles = useRef(new Map<string, CSSProperties>())
   const narrow = useMedia('(max-width: 700px) and (orientation: portrait)')
   const reducedMotion = useMedia('(prefers-reduced-motion: reduce)')
-  const tableMode = (!!view || !!golfView || !!duelView || !!tycoonView || !!trucoView || !!shooterView || !!brawlView || !!navalView || !!mysteryView || !!poolView || !!stopView) && showTable
+  const tableMode = (!!view || !!golfView || !!duelView || !!tycoonView || !!trucoView || !!shooterView || !!brawlView || !!navalView || !!mysteryView || !!poolView || !!stopView || !!pifeView) && showTable
   const hiTile = tableMode && hi && tiles.some((t) => t.id === hi) ? hi : null
   const layout: SceneLayout = hiTile ? 'faixa' : 'mesa'
   const hasView = !!game.view
@@ -477,7 +484,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
     if (gameError) toast(gameError.message, 'warn')
   }, [gameError, toast])
 
-  const colorSource = view?.seats ?? golfView?.players ?? (duelView ? [duelView.white, duelView.black] : undefined) ?? tycoonView?.players ?? trucoView?.players ?? navalView?.players ?? mysteryView?.players ?? poolView?.players ?? stopView?.players
+  const colorSource = view?.seats ?? golfView?.players ?? (duelView ? [duelView.white, duelView.black] : undefined) ?? tycoonView?.players ?? trucoView?.players ?? navalView?.players ?? mysteryView?.players ?? poolView?.players ?? stopView?.players ?? pifeView?.players
   const colors = useMemo(() => Object.fromEntries((colorSource ?? []).map((x) => [x.playerId, toneOf(x.name)])), [colorSource])
   const onGolfShot = useCallback(
     (angle: number, power: number) => {
@@ -523,6 +530,14 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
     [gameApi]
   )
   const onTrucoPlay = useCallback((card: string) => onTrucoAct({ type: 'play', card }), [onTrucoAct])
+  /** jogada do pife: vai com a vez que a pessoa viu (`ref`), para clique atrasado não valer */
+  const onPifeAct = useCallback(
+    (a: PifeIntent) => {
+      const v = pifeRef.current
+      if (v) gameApi.act({ ...a, ref: v.ref } as PifeAction)
+    },
+    [gameApi]
+  )
   /** clique numa casa do Magnata: vale quando o jogo pede para escolher (festival ou avião) */
   const onTycoonPick = useCallback(
     (tile: number) => {
@@ -555,7 +570,7 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
     if (!tableMode) return undefined
     if (hiTile) return { mode: id === hiTile ? 'hi' : 'parked' }
     if (narrow) return { mode: 'strip' }
-    if (golfView || duelView || tycoonView || trucoView || shooterView || brawlView || navalView || mysteryView || poolView || stopView) {
+    if (golfView || duelView || tycoonView || trucoView || shooterView || brawlView || navalView || mysteryView || poolView || stopView || pifeView) {
       const style = { right: CORNER_TV.edge, top: CORNER_TV.edge + idx * (CORNER_TV.h + CORNER_TV.gap), width: CORNER_TV.w, height: CORNER_TV.h }
       return { mode: 'rect', style }
     }
@@ -1078,6 +1093,19 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
                 </Suspense>
               </div>
             )}
+            {tableMode && pifeView && (
+              <div className="scene-host chess-host">
+                <Suspense
+                  fallback={
+                    <div className="scene-loading">
+                      <TvOff noise />
+                    </div>
+                  }
+                >
+                  <PifeSceneLazy view={pifeView} lastEvents={game.lastEvents} reducedMotion={reducedMotion} onAct={onPifeAct} />
+                </Suspense>
+              </div>
+            )}
             {tableMode && navalView && (
               <div className="scene-host chess-host">
                 <Suspense
@@ -1342,6 +1370,25 @@ export function Room({ roomId, name, hostKey, onLeave, onOpenRoom }: Props) {
                   const options = game.lobby?.options
                   gameApi.close()
                   gameApi.open('truco', options)
+                }}
+                onClose={gameApi.close}
+                onBackToScreens={() => setShowTable(false)}
+                musicOn={musicOn}
+                musicVolume={musicVolume}
+                onMusicOn={toggleMusic}
+                onMusicVolume={changeMusicVolume}
+              />
+            </Suspense>
+          )}
+          {tableMode && pifeView && (
+            <Suspense fallback={null}>
+              <PifeHudLazy
+                view={pifeView}
+                canManage={!!game.lobby?.canManage}
+                onPlayAgain={() => {
+                  const options = game.lobby?.options
+                  gameApi.close()
+                  gameApi.open('pife', options)
                 }}
                 onClose={gameApi.close}
                 onBackToScreens={() => setShowTable(false)}

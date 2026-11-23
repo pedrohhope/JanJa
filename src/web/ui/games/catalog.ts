@@ -618,6 +618,29 @@ const ENTRIES: Omit<GameEntry, 'channel'>[] = [
     controls: [{ kind: 'segment', key: 'minutes', label: 'Relógio de cada um', icon: 'clock', choices: CLOCK_CHOICES }],
     defaults: () => ({ ...DEFAULT_VELHA_OPTIONS }),
     summary: clockSummary
+  },
+  {
+    id: 'pife',
+    name: 'Pife',
+    title: 'Pife',
+    icon: 'cards',
+    line: 'Junte três jogos e bata primeiro',
+    description:
+      'Pife para 2 a 8 pessoas, com dois baralhos e os coringas. Cada um recebe 9 cartas; na sua vez, compre do monte ou do lixo e descarte uma. Quem fechar a mão em jogos bate e ganha a rodada.',
+    how: [
+      { icon: 'cards', text: 'Compre do monte ou pegue a carta de cima do lixo, e descarte uma.' },
+      { icon: 'grid', text: 'Jogos: trinca do mesmo número (qualquer naipe) ou sequência do mesmo naipe. O coringa só entra em sequência.' },
+      { icon: 'crown', text: 'Fechou a mão em jogos? Bata e ganhe a rodada.' }
+    ],
+    category: 'cartas',
+    quick: true,
+    people: '2 a 8 pessoas',
+    time: '10 min',
+    bots: false,
+    openLabel: 'Abrir mesa',
+    controls: [],
+    defaults: () => ({}),
+    summary: () => 'Dois baralhos com coringa, 9 cartas cada'
   }
 ]
 

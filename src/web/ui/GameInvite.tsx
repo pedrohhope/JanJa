@@ -19,7 +19,10 @@ export function GameInvite({ gameId, openedBy, onSit, onLater }: Props) {
   const pool = gameId === 'pool'
   const stop = gameId === 'stop'
   const velha = gameId === 'velha'
-  const text = velha
+  const pife = gameId === 'pife'
+  const text = pife
+    ? `${openedBy} abriu uma mesa de Pife`
+    : velha
     ? `${openedBy} chamou para uma Velha ao quadrado`
     : stop
     ? `${openedBy} chamou para um Stop`

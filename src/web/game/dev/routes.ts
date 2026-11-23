@@ -14,6 +14,7 @@
  * /dev/tycoon (TycoonLab): o Magnata com até 5 bots; /dev/truco (TrucoLab): truco com bots (?n=2, 4 ou 6);
  * /dev/naval (NavalLab): batalha naval contra um bot; /dev/mystery (MysteryLab): Mistério com bots;
  * /dev/pool (PoolLab): sinuca contra um bot; /dev/stop (StopLab): Stop com bots;
+ * /dev/pife (PifeLab): pife com bots (`?n=4`, `window.__pife`);
  * /dev/velha (VelhaLab): Velha ao quadrado contra um bot de lances aleatórios (`?bot=0&min=5`, `window.__velha`).
  */
 import type { ComponentType } from 'react'
@@ -37,5 +38,6 @@ export const DEV_ROUTES: DevRoute[] = [
   { path: '/dev/mystery', load: () => import('./MysteryLab').then((m) => ({ default: m.MysteryLab })) },
   { path: '/dev/pool', load: () => import('./PoolLab').then((m) => ({ default: m.PoolLab })) },
   { path: '/dev/stop', load: () => import('./StopLab').then((m) => ({ default: m.StopLab })) },
-  { path: '/dev/velha', load: () => import('./VelhaLab').then((m) => ({ default: m.VelhaLab })) }
+  { path: '/dev/velha', load: () => import('./VelhaLab').then((m) => ({ default: m.VelhaLab })) },
+  { path: '/dev/pife', load: () => import('./PifeLab').then((m) => ({ default: m.PifeLab })) }
 ]

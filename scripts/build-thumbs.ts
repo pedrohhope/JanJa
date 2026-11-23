@@ -27,8 +27,8 @@ const OUT_H = 360
 const QUALITY = 0.78
 const MAX_KB = 45
 
-type GameId = 'poker' | 'golf' | 'chess' | 'checkers' | 'tycoon' | 'truco' | 'shooter' | 'brawl' | 'naval' | 'mystery' | 'pool' | 'stop' | 'velha'
-const ORDER: GameId[] = ['poker', 'golf', 'chess', 'checkers', 'tycoon', 'truco', 'shooter', 'brawl', 'naval', 'mystery', 'pool', 'stop', 'velha']
+type GameId = 'poker' | 'golf' | 'chess' | 'checkers' | 'tycoon' | 'truco' | 'shooter' | 'brawl' | 'naval' | 'mystery' | 'pool' | 'stop' | 'velha' | 'pife'
+const ORDER: GameId[] = ['poker', 'golf', 'chess', 'checkers', 'tycoon', 'truco', 'shooter', 'brawl', 'naval', 'mystery', 'pool', 'stop', 'velha', 'pife']
 
 interface Frame {
   /** o que este quadro mostra (vai para o relatório) */
@@ -489,6 +489,37 @@ const PLANS: Record<GameId, Frame[]> = {
         await settle(page, 800)
         await ev(page, `for (let i = 0; i < 80; i++) { const s = window.__velha.state(); if (s.result || s.pos.small.filter((x) => x !== null).length >= 5) break; window.__velha.random(1) }`)
         await sleep(500)
+      }
+    }
+  ],
+  pife: [
+    {
+      what: 'pife, mesa de 4 com a sua mão organizada',
+      url: '/dev/pife?n=4&seed=4&bot=0',
+      run: async (page) => {
+        await settle(page, 800)
+        await page.keyboard.press('o')
+        await sleep(500)
+      }
+    },
+    {
+      what: 'pife, mesa cheia de 8 no meio da rodada',
+      url: '/dev/pife?n=8&seed=11&bot=0',
+      run: async (page) => {
+        await settle(page, 800)
+        await lab(page, '__pife', 'auto(14)')
+        await sleep(300)
+        await page.keyboard.press('o')
+        await sleep(500)
+      }
+    },
+    {
+      what: 'pife, alguém bateu e as mãos aparecem',
+      url: '/dev/pife?n=5&seed=4&bot=0',
+      run: async (page) => {
+        await settle(page, 800)
+        await lab(page, '__pife', 'auto(400)')
+        await sleep(800)
       }
     }
   ]

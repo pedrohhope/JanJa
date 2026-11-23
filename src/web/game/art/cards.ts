@@ -11,7 +11,7 @@ export type Suit = (typeof SUITS)[number]
 const isRed = (s: string) => s === 'h' || s === 'd'
 
 /** Casca da carta: contorno k com cantos arredondados, papel p, sombra P embaixo e à direita. */
-function cardShell(): Grid {
+export function cardShell(): Grid {
   const g = new Grid(CARD_W, CARD_H)
   g.rect(0, 0, CARD_W, CARD_H, 'k')
   g.rect(1, 1, CARD_W - 2, CARD_H - 2, 'p')

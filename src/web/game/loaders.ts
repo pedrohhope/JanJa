@@ -1,9 +1,9 @@
 /**
- * Pontos de carga lazy dos jogos: Pixi, GSAP, Three.js, os tabuleiros (xadrez, damas, Magnata), a mesa do truco, a batalha naval, o Mistério, a sinuca, o Stop, a Velha ao quadrado e o áudio só entram no bundle quando um jogo abre.
+ * Pontos de carga lazy dos jogos: Pixi, GSAP, Three.js, os tabuleiros (xadrez, damas, Magnata), a mesa do truco, a batalha naval, o Mistério, a sinuca, o Stop, a Velha ao quadrado, o pife e o áudio só entram no bundle quando um jogo abre.
  */
 import type { BrawlSceneProps } from './brawl/scene'
 import type { ShooterSceneProps } from './shooter/contract'
-import type { CheckersSceneProps, ChessSceneProps, GameAudio, GolfSceneProps, MysterySceneProps, NavalSceneProps, PokerSceneProps, PoolSceneProps, StopSceneProps, TrucoSceneProps, TycoonSceneProps, VelhaSceneProps } from './contract'
+import type { CheckersSceneProps, ChessSceneProps, GameAudio, GolfSceneProps, MysterySceneProps, NavalSceneProps, PokerSceneProps, PoolSceneProps, StopSceneProps, TrucoSceneProps, TycoonSceneProps, VelhaSceneProps, PifeSceneProps } from './contract'
 import type { ComponentType } from 'react'
 import { loadChunk } from '../version'
 
@@ -21,6 +21,10 @@ export const loadChessScene = (): Promise<{ default: ComponentType<ChessScenePro
 /** tabuleiro das damas (SVG, sem biblioteca de desenho) */
 export const loadCheckersScene = (): Promise<{ default: ComponentType<CheckersSceneProps> }> =>
   import('./checkers/scene').then((m) => ({ default: m.CheckersScene }))
+
+/** mesa do pife (HTML, sem biblioteca de desenho) */
+export const loadPifeScene = (): Promise<{ default: ComponentType<PifeSceneProps> }> =>
+  import('./pife/scene').then((m) => ({ default: m.PifeScene }))
 
 /** Velha ao quadrado (SVG, sem biblioteca de desenho) */
 export const loadVelhaScene = (): Promise<{ default: ComponentType<VelhaSceneProps> }> =>

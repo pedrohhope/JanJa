@@ -723,6 +723,39 @@ button.link:hover:not(:disabled) { --fg: var(--paper); }
 .velha-count { font-size: 12px; color: var(--dust); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .velha-pop { animation: none; } }
 
+/* pife: mesa como a do truco; monte e lixo no meio; a sua mão embaixo, arrastável. --cw = largura da carta, --ov = sobreposição */
+.pf-scene { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--wall); }
+.pf-felt { bottom: 22%; }
+.pf-card { display: block; image-rendering: pixelated; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45)); user-select: none; }
+.pf-plate.won { border-color: var(--lamp); }
+.pf-mini-hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; max-width: 250px; }
+.pf-plate { max-width: 260px; }
+.pf-center { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 2; }
+.pf-piles { display: flex; gap: 18px; }
+.pf-pile { --bg: transparent; --bg-h: transparent; --bd: transparent; --bd-h: transparent; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px; height: auto; border-radius: 8px; color: var(--dust); font-size: 12px; }
+.pf-pile:disabled { opacity: 1; cursor: default; }
+.pf-pile.can, .pf-pile.drop { --bd: var(--lamp); --bd-h: var(--lamp-hi); cursor: pointer; }
+.pf-pile.can:hover .pf-card, .pf-pile.drop:hover .pf-card { transform: translateY(-3px); }
+.pf-empty { display: block; border: 1px dashed var(--rug); border-radius: 4px; }
+.pf-in { animation: tr-in 0.2s var(--ease) both; }
+.pf-log { color: var(--dust); font-size: 12px; max-width: 320px; text-align: center; }
+.pf-win { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pf-win strong { font-size: 22px; color: var(--lamp); }
+.pf-melds { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.pf-meld { display: flex; gap: 2px; padding: 4px; border-radius: 6px; background: rgba(255, 201, 74, 0.12); }
+.pf-bottom { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 4; }
+.pf-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.pf-hand { display: flex; padding-top: 14px; }
+.pf-hand-card { --bg: transparent; --bg-h: transparent; --bd: transparent; --bd-h: transparent; position: relative; padding: 0; height: auto; border-radius: 6px; touch-action: none; transition: transform 0.12s var(--ease); }
+.pf-hand-card + .pf-hand-card { margin-left: var(--ov); }
+.pf-hand-card:hover { transform: translateY(-6px); z-index: 1; }
+.pf-hand-card.sel { transform: translateY(-14px); z-index: 2; }
+.pf-hand-card.sel .pf-card { filter: drop-shadow(0 0 4px var(--lamp)); }
+.pf-hand-card.new::before { content: ''; position: absolute; top: -8px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--lamp); }
+.pf-hand-card.meld::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: -6px; height: 3px; border-radius: 2px; background: #6FD49B; }
+.pf-hand-card.lifted { transition: none; z-index: 3; }
+@media (prefers-reduced-motion: reduce) { .pf-in { animation: none; } .pf-hand-card { transition: none; } }
+
 /* truco: mesa de feltro, placas em volta, cartas jogadas na frente de cada um, a sua mão embaixo. --cw = largura da carta */
 .tr-wrap { position: relative; display: flex; width: 100%; height: 100%; container-type: inline-size; }
 .tr-scene { position: relative; flex: 1; min-width: 0; height: 100%; overflow: hidden; background: var(--wall); }

@@ -45,6 +45,7 @@ export const SCOPES = {
   sinuca: 'sinuca: física, regras da bola 8, mesa, HUD',
   stop: 'Stop (adedonha): letras, categorias, conferência, HUD',
   velha: 'Velha ao quadrado: regras, tabuleiro, HUD',
+  pife: 'pife: regras, jogos e batida, mesa, HUD',
   tour: 'tour guiado',
   jan: 'o mascote Jan',
   ui: 'visual geral, tela inicial, componentes',

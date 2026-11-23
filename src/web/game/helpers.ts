@@ -10,6 +10,7 @@ import type { StopEvent } from '../../shared/games/stop/types'
 import type { TrucoEvent } from '../../shared/games/truco/types'
 import type { TycoonEvent } from '../../shared/games/tycoon/types'
 import type { VelhaEvent } from '../../shared/games/velha/types'
+import type { PifeEvent } from '../../shared/games/pife/types'
 import type { Card, LegalAction, PokerAction, PokerEvent, PokerMode, PokerView } from '../../shared/games/poker/types'
 import type { MusicTrack, Rect, SfxName } from './contract'
 
@@ -199,6 +200,29 @@ export function velhaSfxForEvent(ev: VelhaEvent): SfxCue | null {
 }
 
 export function velhaTrackForEvent(ev: VelhaEvent): MusicTrack | null {
+  if (ev.type === 'start') return 'calma'
+  if (ev.type === 'end') return 'vitoria'
+  return null
+}
+
+/** Som de um evento do pife: embaralhar, comprar, descartar e a batida. */
+export function pifeSfxForEvent(ev: PifeEvent): SfxCue | null {
+  switch (ev.type) {
+    case 'start':
+    case 'reshuffle':
+      return { name: 'shuffle' }
+    case 'draw':
+      return { name: 'deal' }
+    case 'discard':
+      return { name: 'flip' }
+    case 'end':
+      return { name: 'podium' }
+    default:
+      return null
+  }
+}
+
+export function pifeTrackForEvent(ev: PifeEvent): MusicTrack | null {
   if (ev.type === 'start') return 'calma'
   if (ev.type === 'end') return 'vitoria'
   return null

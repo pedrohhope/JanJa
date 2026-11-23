@@ -7,6 +7,7 @@
 import type { GameLobby } from '../../shared/games/protocol'
 import type { CheckersView } from '../../shared/games/checkers/types'
 import type { VelhaView } from '../../shared/games/velha/types'
+import type { PifeIntent, PifeView } from '../../shared/games/pife/types'
 import type { ChessView, Promo } from '../../shared/games/chess/types'
 import type { GolfView } from '../../shared/games/golf/types'
 import type { PokerEvent, PokerView } from '../../shared/games/poker/types'
@@ -33,7 +34,7 @@ export interface RawEventBatch {
 
 export interface GameClientState {
   lobby: GameLobby | null
-  /** visão do jogo aberto: PokerView, GolfView, ChessView, CheckersView, TycoonView, TrucoView, NavalView, MysteryView, PoolView, StopView ou VelhaView, conforme `lobby.gameId` */
+  /** visão do jogo aberto: PokerView, GolfView, ChessView, CheckersView, TycoonView, TrucoView, NavalView, MysteryView, PoolView, StopView, VelhaView ou PifeView, conforme `lobby.gameId` */
   view: unknown
   /** último lote de eventos recebido (a CENA anima a partir dele; o seq evita animar duas vezes) */
   lastEvents: RawEventBatch | null
@@ -105,6 +106,15 @@ export interface CheckersSceneProps {
   reducedMotion: boolean
   /** lance escolhido: o caminho em casas, ex.: ["c3", "e5", "g7"] */
   onMove: (path: string[]) => void
+}
+
+/** Mesa do pife (HTML; cartas do poker em imagem). A sua mão você arruma do seu jeito. */
+export interface PifeSceneProps {
+  view: PifeView
+  lastEvents: RawEventBatch | null
+  reducedMotion: boolean
+  /** a SALA completa com o `ref` */
+  onAct: (action: PifeIntent) => void
 }
 
 /** Velha ao quadrado (SVG em pixel art), no molde das damas. */
