@@ -69,3 +69,13 @@ export function cardName(c: Card): string {
   const r = rankOf(c)
   return `${RANK_NAME[r] ?? String(r)} de ${SUIT_NAME[suitOf(c)]}`
 }
+
+/** Ordem das cartas no truco: grupos da mais forte para a mais fraca (cartas do mesmo grupo empatam). */
+export const RANKING: readonly (readonly Card[])[] = (() => {
+  const by = new Map<number, Card[]>()
+  for (const c of DECK) by.set(power(c), [...(by.get(power(c)) ?? []), c])
+  return [...by.entries()].sort((a, b) => b[0] - a[0]).map(([, cs]) => cs)
+})()
+
+/** nome de cada grupo de RANKING, da mais forte para a mais fraca */
+export const RANKING_NAMES = ['Espadão', 'Bastião', '7 de espadas', '7 de ouros', 'Os 3', 'Os 2', 'Ases falsos', 'Reis', 'Cavalos', 'Sotas', 'Setes falsos', 'Os 6', 'Os 5', 'Os 4'] as const

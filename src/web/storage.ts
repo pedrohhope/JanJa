@@ -103,6 +103,8 @@ export interface Prefs {
   chatMode: 'coluna' | 'fechado'
   /** por onde a minha tela vai: automático, sempre direta (P2P) ou sempre pelo servidor da Cloudflare */
   screenRoute: RoutePref
+  /** truco: painel com a ordem das cartas e as regras aberto ao lado da mesa */
+  trucoGuide: boolean
 }
 
 /** Valor salvo que não é uma rota conhecida (versão antiga, edição à mão) volta para o automático. */
@@ -128,6 +130,7 @@ const DEFAULT_PREFS: Prefs = {
   shareBrowserAudio: false,
   chatMode: 'coluna',
   screenRoute: 'auto',
+  trucoGuide: true,
   micNoiseSuppression: true,
   micGate: 0
 }
