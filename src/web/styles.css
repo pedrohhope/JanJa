@@ -660,6 +660,14 @@ button.link:hover:not(:disabled) { --fg: var(--paper); }
 .chess3d-wrap:focus-visible { box-shadow: 0 0 0 2px var(--lamp); }
 .chess3d { position: relative; display: block; }
 .chess3d-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; touch-action: none; cursor: grab; }
+.chess3d-canvas.smooth { image-rendering: auto; }
+.chess-view-toggle .chess-real-btn { font-family: Georgia, 'Times New Roman', serif; font-style: italic; }
+.chess-view-toggle .cheat-pop { animation: cheat-pop 0.5s steps(4) 4; }
+@keyframes cheat-pop { 0%, 100% { box-shadow: 0 0 0 0 var(--lamp); } 50% { box-shadow: 0 0 0 4px var(--lamp); } }
+.chess-cheat-toast { position: absolute; top: 0; left: calc(100% + 8px); white-space: nowrap; padding: 4px 8px; border-radius: var(--r-ctl); background: var(--lamp); color: var(--wall); font-size: 14px; pointer-events: none; animation: cheat-toast 3.2s steps(8) forwards; }
+@keyframes cheat-toast { 0% { opacity: 0; transform: translateY(4px); } 10%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@media (max-width: 760px) { .chess-cheat-toast { left: auto; right: 0; top: calc(100% + 6px); } }
+@media (prefers-reduced-motion: reduce) { .chess-view-toggle .cheat-pop, .chess-cheat-toast { animation: none; } }
 .chess3d-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dust); }
 .chess-promo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(34, 28, 25, 0.82); z-index: 2; }
 .chess-promo-row { display: flex; gap: 8px; }

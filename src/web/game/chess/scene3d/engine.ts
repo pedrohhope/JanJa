@@ -1,9 +1,10 @@
 /**
- * Tabuleiro do xadrez em 3D (Three.js), com as peças em voxel feitas da mesma pixel art do 2D.
- * Só este diretório e o do golfe importam `three` (carrega sob demanda, quando a pessoa escolhe 3D).
+ * Tabuleiro do xadrez em 3D (Three.js). O motor (câmera, clique, marcas, animação) é o mesmo para os
+ * dois visuais (`Look`): o 8 bits daqui (peças em voxel feitas da pixel art do 2D, imagem pixelada) e o
+ * realista (`real.ts`, liberado pelo código secreto). Carrega sob demanda, quando a pessoa escolhe 3D.
  *
- * Desenha em resolução baixa e amplia sem suavizar (cara de 8 bits). Só redesenha quando algo muda.
- * Clique escolhe a casa (a regra de seleção fica no ChessScene); arrastar gira a câmera; roda aproxima.
+ * Só redesenha quando algo muda. Clique escolhe a casa (a regra de seleção fica no ChessScene);
+ * arrastar gira a câmera; roda aproxima.
  */
 import {
   AmbientLight,
@@ -70,6 +71,23 @@ export interface Chess3DProps {
   onSquare: (sq: string) => void
 }
 
+/** O visual: luz, tabuleiro, peças e marcas de destino. O topo das casas fica em y = 0. */
+export interface Look {
+  /** desenha em resolução baixa e amplia sem suavizar */
+  pixelated: boolean
+  moveMs: number
+  /** altura do pulinho da peça que anda */
+  hop: number
+  /** câmera de partida: inclinação (rad) e distância */
+  camera: { pitch: number; dist: number }
+  build(scene: Scene, renderer: WebGLRenderer): void
+  /** peça nova no centro (0, 0, 0), para a casa `sq`; a malha pode dividir geometria e material com outras */
+  piece(piece: string, sq: string): Mesh
+  /** marca de destino (centro da casa em 0, 0, 0) */
+  target(capture: boolean): Object3D
+  dispose(): void
+}
+
 const fileOf = (s: string) => s.charCodeAt(0) - 97
 const rankOf = (s: string) => Number(s[1]) - 1
 const sqName = (f: number, r: number) => FILES[f] + String(r + 1)
@@ -123,14 +141,122 @@ function outlineTexture(color: string): CanvasTexture {
   return tex
 }
 
+/** O visual 8 bits: peças em voxel, casas em bloquinho, letras em pixel, imagem pixelada. */
+export function pixelLook(): Look {
+  const geoms = new Map<string, BufferGeometry>()
+  const pieceMat = new MeshLambertMaterial({ vertexColors: true })
+  const dotGeo = new BoxGeometry(0.14, 0.06, 0.14)
+  const ringGeo = new BoxGeometry(0.16, 0.06, 0.16)
+  const markMat = new MeshBasicMaterial({ color: LAMP })
+  const ringMat = new MeshBasicMaterial({ color: CORAL })
+
+  const geometryFor = (piece: string): BufferGeometry => {
+    let geo = geoms.get(piece)
+    if (geo) return geo
+    const type = typeOf(piece) as PieceType
+    const side = colorOf(piece) === 'w' ? 'w' : 'b'
+    const mesh = voxelMesh(pieceVoxels(type), 1 / 16)
+    const body = new Color(PIECE_COLORS[side].body)
+    const trim = new Color(PIECE_COLORS[side].trim)
+    const col: number[] = []
+    for (const t of mesh.trim) {
+      const c = t ? trim : body
+      col.push(c.r, c.g, c.b)
+    }
+    geo = new BufferGeometry()
+    geo.setAttribute('position', new Float32BufferAttribute(mesh.pos, 3))
+    geo.setAttribute('normal', new Float32BufferAttribute(mesh.normal, 3))
+    geo.setAttribute('color', new Float32BufferAttribute(col, 3))
+    geo.setIndex(mesh.index)
+    geoms.set(piece, geo)
+    return geo
+  }
+
+  return {
+    pixelated: true,
+    moveMs: MOVE_MS,
+    hop: 0.35,
+    camera: { pitch: 0.92, dist: 15.5 },
+    build(scene) {
+      scene.background = new Color(BG)
+      scene.add(new HemisphereLight('#FFE8C0', '#2A211C', 1.5))
+      scene.add(new AmbientLight(LAMP, 0.25))
+      // abajur: luz quente de cima, um pouco de lado (as peças ficam com um lado na sombra)
+      const lamp = new DirectionalLight('#FFF1D6', 1.9)
+      lamp.position.set(-3, 10, 4)
+      scene.add(lamp)
+      const g = new Group()
+      // casas: blocos baixos (a borda de cada casa aparece de lado, bem 8 bits)
+      const tile = new BoxGeometry(1, 0.14, 1)
+      const light = new MeshLambertMaterial({ color: LIGHT })
+      const dark = new MeshLambertMaterial({ color: DARK })
+      for (let f = 0; f < 8; f++)
+        for (let r = 0; r < 8; r++) {
+          const m = new Mesh(tile, (f + r) % 2 === 1 ? light : dark)
+          m.position.set(f - 3.5, -0.07, 3.5 - r)
+          g.add(m)
+        }
+      // moldura de madeira e a base
+      const frame = new Mesh(new BoxGeometry(9.3, 0.3, 9.3), new MeshLambertMaterial({ color: WOOD }))
+      frame.position.y = -0.2
+      const base = new Mesh(new BoxGeometry(9.7, 0.3, 9.7), new MeshLambertMaterial({ color: WOOD_DARK }))
+      base.position.y = -0.45
+      g.add(frame, base)
+      // letras e números na moldura (dos dois lados, para quem joga de pretas também)
+      const label = (text: string, x: number, z: number, rot: number) => {
+        const m = new Mesh(new PlaneGeometry(0.42, 0.42), new MeshBasicMaterial({ map: textTexture(text, '#F3EBDD'), transparent: true, depthWrite: false }))
+        m.rotation.set(-Math.PI / 2, 0, rot)
+        m.position.set(x, -0.045, z)
+        g.add(m)
+      }
+      for (let i = 0; i < 8; i++) {
+        label(FILES[i], i - 3.5, 4.33, 0)
+        label(FILES[i], i - 3.5, -4.33, Math.PI)
+        label(String(i + 1), -4.33, 3.5 - i, 0)
+        label(String(i + 1), 4.33, 3.5 - i, Math.PI)
+      }
+      scene.add(g)
+    },
+    piece(piece) {
+      const m = new Mesh(geometryFor(piece), pieceMat)
+      // o cavalo olha para o lado do adversário (o desenho tem o focinho à esquerda)
+      if (typeOf(piece) === 'n') m.rotation.y = colorOf(piece) === 'w' ? -Math.PI / 2 : Math.PI / 2
+      return m
+    },
+    target(capture) {
+      if (!capture) {
+        const m = new Mesh(dotGeo, markMat)
+        m.position.y = 0.03
+        return m
+      }
+      // captura: quatro cubinhos coral nos cantos
+      const g = new Group()
+      for (const [dx, dz] of [
+        [-0.38, -0.38],
+        [0.38, -0.38],
+        [-0.38, 0.38],
+        [0.38, 0.38]
+      ]) {
+        const m = new Mesh(ringGeo, ringMat)
+        m.position.set(dx, 0.03, dz)
+        g.add(m)
+      }
+      return g
+    },
+    dispose() {
+      for (const g of geoms.values()) g.dispose()
+      geoms.clear()
+      for (const x of [dotGeo, ringGeo, markMat, ringMat, pieceMat]) x.dispose()
+    }
+  }
+}
+
 export class Chess3DEngine {
   private renderer: WebGLRenderer
   private scene = new Scene()
   private camera = new PerspectiveCamera(38, 1, 0.1, 100)
   private piecesGroup = new Group()
   private marks = new Group()
-  private geoms = new Map<string, BufferGeometry>()
-  private pieceMat = new MeshLambertMaterial({ vertexColors: true })
   private pieces = new Map<string, Mesh>()
   private props: Chess3DProps | null = null
   private lastKey = -1
@@ -150,35 +276,29 @@ export class Chess3DEngine {
   private ground = new Plane(new Vector3(0, 1, 0), 0)
   // marcas reaproveitadas
   private hl: Record<'from' | 'to' | 'check' | 'sel' | 'cursor', Mesh>
-  private dotGeo = new BoxGeometry(0.14, 0.06, 0.14)
-  private ringGeo = new BoxGeometry(0.16, 0.06, 0.16)
-  private markMat = new MeshBasicMaterial({ color: LAMP })
-  private ringMat = new MeshBasicMaterial({ color: CORAL })
 
-  constructor(host: HTMLElement) {
-    this.renderer = new WebGLRenderer({ antialias: false, powerPreference: 'high-performance' })
+  constructor(
+    host: HTMLElement,
+    private look: Look = pixelLook()
+  ) {
+    this.pitch = look.camera.pitch
+    this.dist = look.camera.dist
+    this.renderer = new WebGLRenderer({ antialias: !look.pixelated, powerPreference: 'high-performance' })
     this.renderer.setPixelRatio(1)
     const cv = this.renderer.domElement
-    cv.className = 'chess3d-canvas'
+    cv.className = look.pixelated ? 'chess3d-canvas' : 'chess3d-canvas smooth'
     host.appendChild(cv)
-    this.scene.background = new Color(BG)
-    this.scene.add(new HemisphereLight('#FFE8C0', '#2A211C', 1.5))
-    this.scene.add(new AmbientLight(LAMP, 0.25))
-    // abajur: luz quente de cima, um pouco de lado (as peças ficam com um lado na sombra)
-    const lamp = new DirectionalLight('#FFF1D6', 1.9)
-    lamp.position.set(-3, 10, 4)
-    this.scene.add(lamp)
+    look.build(this.scene, this.renderer)
 
-    this.buildBoard()
     const plane = (color: string, opacity: number, y: number) => {
-      const m = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }))
+      const m = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, toneMapped: false }))
       m.rotation.x = -Math.PI / 2
       m.position.y = y
       m.visible = false
       this.scene.add(m)
       return m
     }
-    const cursor = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: outlineTexture(LAMP), transparent: true, depthWrite: false }))
+    const cursor = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: outlineTexture(LAMP), transparent: true, depthWrite: false, toneMapped: false }))
     cursor.rotation.x = -Math.PI / 2
     cursor.position.y = 0.012
     cursor.visible = false
@@ -195,67 +315,9 @@ export class Chess3DEngine {
     this.raf = requestAnimationFrame(this.frame)
   }
 
-  private buildBoard(): void {
-    const g = new Group()
-    // casas: blocos baixos (a borda de cada casa aparece de lado, bem 8 bits)
-    const tile = new BoxGeometry(1, 0.14, 1)
-    const light = new MeshLambertMaterial({ color: LIGHT })
-    const dark = new MeshLambertMaterial({ color: DARK })
-    for (let f = 0; f < 8; f++)
-      for (let r = 0; r < 8; r++) {
-        const m = new Mesh(tile, (f + r) % 2 === 1 ? light : dark)
-        m.position.set(f - 3.5, -0.07, 3.5 - r)
-        g.add(m)
-      }
-    // moldura de madeira e a base
-    const frame = new Mesh(new BoxGeometry(9.3, 0.3, 9.3), new MeshLambertMaterial({ color: WOOD }))
-    frame.position.y = -0.2
-    const base = new Mesh(new BoxGeometry(9.7, 0.3, 9.7), new MeshLambertMaterial({ color: WOOD_DARK }))
-    base.position.y = -0.45
-    g.add(frame, base)
-    // letras e números na moldura (dos dois lados, para quem joga de pretas também)
-    const label = (text: string, x: number, z: number, rot: number) => {
-      const m = new Mesh(new PlaneGeometry(0.42, 0.42), new MeshBasicMaterial({ map: textTexture(text, '#F3EBDD'), transparent: true, depthWrite: false }))
-      m.rotation.set(-Math.PI / 2, 0, rot)
-      m.position.set(x, -0.045, z)
-      g.add(m)
-    }
-    for (let i = 0; i < 8; i++) {
-      label(FILES[i], i - 3.5, 4.33, 0)
-      label(FILES[i], i - 3.5, -4.33, Math.PI)
-      label(String(i + 1), -4.33, 3.5 - i, 0)
-      label(String(i + 1), 4.33, 3.5 - i, Math.PI)
-    }
-    this.scene.add(g)
-  }
-
-  private geometryFor(piece: string): BufferGeometry {
-    let geo = this.geoms.get(piece)
-    if (geo) return geo
-    const type = typeOf(piece) as PieceType
-    const side = colorOf(piece) === 'w' ? 'w' : 'b'
-    const mesh = voxelMesh(pieceVoxels(type), 1 / 16)
-    const body = new Color(PIECE_COLORS[side].body)
-    const trim = new Color(PIECE_COLORS[side].trim)
-    const col: number[] = []
-    for (const t of mesh.trim) {
-      const c = t ? trim : body
-      col.push(c.r, c.g, c.b)
-    }
-    geo = new BufferGeometry()
-    geo.setAttribute('position', new Float32BufferAttribute(mesh.pos, 3))
-    geo.setAttribute('normal', new Float32BufferAttribute(mesh.normal, 3))
-    geo.setAttribute('color', new Float32BufferAttribute(col, 3))
-    geo.setIndex(mesh.index)
-    this.geoms.set(piece, geo)
-    return geo
-  }
-
   private makePiece(piece: string, sq: string): Mesh {
-    const m = new Mesh(this.geometryFor(piece), this.pieceMat)
+    const m = this.look.piece(piece, sq)
     m.position.copy(posOf(sq))
-    // o cavalo olha para o lado do adversário (o desenho tem o focinho à esquerda)
-    if (typeOf(piece) === 'n') m.rotation.y = colorOf(piece) === 'w' ? -Math.PI / 2 : Math.PI / 2
     m.userData = { sq, piece }
     return m
   }
@@ -264,8 +326,13 @@ export class Chess3DEngine {
     this.w = Math.max(1, w)
     this.h = Math.max(1, h)
     const dpr = window.devicePixelRatio || 1
-    const px = Math.max(1, Math.round((this.h * dpr) / VIRTUAL_H))
-    this.renderer.setSize(Math.max(1, Math.round((this.w * dpr) / px)), Math.max(1, Math.round((this.h * dpr) / px)), false)
+    if (this.look.pixelated) {
+      const px = Math.max(1, Math.round((this.h * dpr) / VIRTUAL_H))
+      this.renderer.setSize(Math.max(1, Math.round((this.w * dpr) / px)), Math.max(1, Math.round((this.h * dpr) / px)), false)
+    } else {
+      const r = Math.min(2, dpr)
+      this.renderer.setSize(Math.max(1, Math.round(this.w * r)), Math.max(1, Math.round(this.h * r)), false)
+    }
     this.camera.aspect = this.w / this.h
     this.camera.updateProjectionMatrix()
     this.dirty = true
@@ -297,24 +364,10 @@ export class Chess3DEngine {
     disposeMarks(this.marks)
     for (const t of p.targets) {
       const v = posOf(t)
-      const occupied = p.board[fileOf(t) + rankOf(t) * 8] !== '.'
-      if (occupied) {
-        // captura: quatro cubinhos coral nos cantos
-        for (const [dx, dz] of [
-          [-0.38, -0.38],
-          [0.38, -0.38],
-          [-0.38, 0.38],
-          [0.38, 0.38]
-        ]) {
-          const m = new Mesh(this.ringGeo, this.ringMat)
-          m.position.set(v.x + dx, 0.03, v.z + dz)
-          this.marks.add(m)
-        }
-      } else {
-        const m = new Mesh(this.dotGeo, this.markMat)
-        m.position.set(v.x, 0.03, v.z)
-        this.marks.add(m)
-      }
+      const m = this.look.target(p.board[fileOf(t) + rankOf(t) * 8] !== '.')
+      m.position.x += v.x
+      m.position.z += v.z
+      this.marks.add(m)
     }
     this.dirty = true
   }
@@ -415,8 +468,8 @@ export class Chess3DEngine {
   /** volta a câmera para o lugar de sempre */
   resetView(): void {
     this.yaw = this.baseYaw
-    this.pitch = 0.92
-    this.dist = 15.5
+    this.pitch = this.look.camera.pitch
+    this.dist = this.look.camera.dist
     this.dirty = true
   }
 
@@ -424,10 +477,10 @@ export class Chess3DEngine {
     this.raf = requestAnimationFrame(this.frame)
     const a = this.anim
     if (a) {
-      const t = Math.min(1, (now - a.t0) / MOVE_MS)
+      const t = Math.min(1, (now - a.t0) / this.look.moveMs)
       const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2
       a.mesh.position.lerpVectors(a.from, a.to, e)
-      a.mesh.position.y = Math.sin(Math.PI * t) * 0.35
+      a.mesh.position.y = Math.sin(Math.PI * t) * this.look.hop
       if (t >= 1) {
         a.mesh.position.copy(a.to)
         this.anim = null
@@ -459,15 +512,9 @@ export class Chess3DEngine {
     cv.removeEventListener('pointercancel', this.onCancel)
     cv.removeEventListener('wheel', this.onWheel)
     disposeMarks(this.marks)
-    for (const g of this.geoms.values()) g.dispose()
-    this.geoms.clear()
     this.piecesGroup.clear()
     disposeTree(this.scene)
-    this.dotGeo.dispose()
-    this.ringGeo.dispose()
-    this.markMat.dispose()
-    this.ringMat.dispose()
-    this.pieceMat.dispose()
+    this.look.dispose()
     this.renderer.dispose()
     cv.remove()
   }

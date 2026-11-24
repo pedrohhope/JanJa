@@ -5,6 +5,7 @@ import type { ChessSceneProps } from '../../contract'
 import { getPrefs, setPrefs } from '../../../storage'
 import { DuelFrame } from '../../duel/DuelFrame'
 import { Chess3D } from '../scene3d/Chess3D'
+import { CHEAT_START, cheatDone, cheatStep } from '../cheat'
 import { PIECE_SIZE, pieceRuns } from './pieces'
 
 const CELL = PIECE_SIZE
@@ -21,6 +22,14 @@ const NAME: Record<PieceType, [string, boolean]> = {
   q: ['dama', true],
   k: ['rei', false]
 }
+
+type ViewMode = '2d' | '3d' | 'real'
+/**
+ * O botão "Real" é segredo: aparece com o código (cima, cima, baixo, baixo, esquerda, direita) durante a
+ * partida e fica até fechar a aba (não vai para as preferências). Fica fora do componente para
+ * sobreviver à próxima partida.
+ */
+const secret = { unlocked: false, real: false }
 
 const sqName = (f: number, r: number): string => FILES[f] + String(r + 1)
 const sqIndex = (s: string): number => s.charCodeAt(0) - 97 + (Number(s[1]) - 1) * 8
@@ -68,13 +77,43 @@ export function ChessScene({ view, colors, reducedMotion, onMove }: ChessScenePr
   const [promo, setPromo] = useState<{ from: string; to: string } | null>(null)
   /** lance que eu soltei arrastando: não anima de novo */
   const dropped = useRef<string | null>(null)
-  /** tabuleiro em 3D (escolha de cada pessoa, fica salva) */
-  const [three, setThree] = useState(() => getPrefs().chess3d)
+  /** 2D, 3D (escolha de cada pessoa, fica salva) ou o realista (segredo, só nesta aba) */
+  const [mode, setMode] = useState<ViewMode>(() => (secret.unlocked && secret.real ? 'real' : getPrefs().chess3d ? '3d' : '2d'))
+  const three = mode !== '2d'
   const [resetSeq, setResetSeq] = useState(0)
-  const chooseView = (on: boolean) => {
-    setThree(on)
-    setPrefs({ chess3d: on })
+  const chooseView = (m: ViewMode) => {
+    setMode(m)
+    secret.real = m === 'real'
+    if (m !== 'real') setPrefs({ chess3d: m === '3d' })
   }
+  const [unlocked, setUnlocked] = useState(secret.unlocked)
+  /** acabou de liberar: o botão pisca e aparece o aviso */
+  const [justUnlocked, setJustUnlocked] = useState(false)
+  const playing = !view.result
+
+  // o código secreto: setas em qualquer lugar da página (menos em campo de texto), só com a partida rolando
+  useEffect(() => {
+    if (unlocked || !playing) return
+    let st = CHEAT_START
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.repeat) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      st = cheatStep(st, e.key, performance.now())
+      if (!cheatDone(st)) return
+      secret.unlocked = true
+      setUnlocked(true)
+      setJustUnlocked(true)
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [unlocked, playing])
+
+  useEffect(() => {
+    if (!justUnlocked) return
+    const id = setTimeout(() => setJustUnlocked(false), 3200)
+    return () => clearTimeout(id)
+  }, [justUnlocked])
 
   useEffect(() => {
     setSel(null)
@@ -185,12 +224,27 @@ export function ChessScene({ view, colors, reducedMotion, onMove }: ChessScenePr
       {(size) => (
         <>
           <div className="chess-view-toggle" role="group" aria-label="Como ver o tabuleiro">
-            <button className={!three ? 'on' : ''} aria-pressed={!three} onClick={() => chooseView(false)} data-tip="Tabuleiro visto de cima">
+            <button className={mode === '2d' ? 'on' : ''} aria-pressed={mode === '2d'} onClick={() => chooseView('2d')} data-tip="Tabuleiro visto de cima">
               2D
             </button>
-            <button className={three ? 'on' : ''} aria-pressed={three} onClick={() => chooseView(true)} data-tip="Tabuleiro em 3D: arraste para girar, roda para aproximar">
+            <button className={mode === '3d' ? 'on' : ''} aria-pressed={mode === '3d'} onClick={() => chooseView('3d')} data-tip="Tabuleiro em 3D: arraste para girar, roda para aproximar">
               3D
             </button>
+            {unlocked && (
+              <button
+                className={`chess-real-btn ${mode === 'real' ? 'on' : ''} ${justUnlocked ? 'cheat-pop' : ''}`}
+                aria-pressed={mode === 'real'}
+                onClick={() => chooseView('real')}
+                data-tip="Tabuleiro realista: madeira, sombra e reflexo"
+              >
+                Real
+              </button>
+            )}
+            {justUnlocked && (
+              <span className="chess-cheat-toast pixel-font" role="status">
+                Truque liberado!
+              </span>
+            )}
             {three && (
               <button onClick={() => setResetSeq((n) => n + 1)} aria-label="Câmera de volta ao lugar" data-tip="Câmera de volta ao lugar">
                 ↺
@@ -202,12 +256,14 @@ export function ChessScene({ view, colors, reducedMotion, onMove }: ChessScenePr
               className={`chess3d-wrap ${myTurn ? 'my-turn' : ''}`}
               tabIndex={0}
               role="application"
-              aria-label={`Tabuleiro de xadrez em 3D. ${youLabel} Clique na peça e depois na casa; arraste para girar. Setas andam pelas casas, Enter escolhe.`}
+              aria-label={`Tabuleiro de xadrez em 3D${mode === 'real' ? ', realista' : ''}. ${youLabel} Clique na peça e depois na casa; arraste para girar. Setas andam pelas casas, Enter escolhe.`}
               onKeyDown={onKey}
               onFocus={(e) => setFocused(e.currentTarget.matches(':focus-visible'))}
               onBlur={() => setFocused(false)}
             >
               <Chess3D
+                key={mode}
+                look={mode === 'real' ? 'real' : 'pixel'}
                 size={size}
                 resetSeq={resetSeq}
                 board={view.board}
