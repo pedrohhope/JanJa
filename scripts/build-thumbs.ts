@@ -366,12 +366,15 @@ const PLANS: Record<GameId, Frame[]> = {
   ],
   mystery: [
     {
-      what: 'Mistério, suas cartas e o caderno de pistas',
+      what: 'Mistério, o tabuleiro do Casarão com os dados rolados',
       url: '/dev/mystery?n=4',
       run: async (page) => {
         await settle(page, 1500)
         await markNotes(page, 5)
-        await sleep(800)
+        await ev(page, `window.__misterio.mine()`)
+        await sleep(400)
+        await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>('.my-turnbox button')].find((b) => b.textContent?.includes('Rolar'))?.click())
+        await sleep(900)
       }
     },
     {
@@ -390,7 +393,10 @@ const PLANS: Record<GameId, Frame[]> = {
       run: async (page) => {
         await settle(page, 1000)
         await sleep(6000)
+        await ev(page, `window.__misterio.enter('biblioteca')`)
+        await sleep(400)
         await pickGuess(page)
+        await page.evaluate(() => document.querySelector('.my-pick')?.scrollIntoView({ block: 'end' }))
         await sleep(600)
       }
     }
@@ -621,7 +627,7 @@ async function toWebp(tool: Page, png: Buffer): Promise<Buffer> {
       for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000))
       return btoa(s)
     },
-    png.toString('base64'),
+    Buffer.from(png).toString('base64'),
     OUT_W,
     OUT_H,
     QUALITY

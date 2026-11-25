@@ -38,7 +38,14 @@ export function MysteryHud(p: Props) {
     help = `Escolha qual carta mostrar para ${name(view.current?.by ?? 0)}. Só ela vê.`
   } else if (view.turn === me) {
     title = 'Sua vez'
-    help = view.phase === 'palpite' ? 'Escolha quem, onde e com o quê e palpite. Ou acuse, se tiver certeza.' : 'Acuse se tiver certeza, ou termine a vez.'
+    help =
+      view.phase === 'rolar'
+        ? 'Role os dados e ande até um cômodo. Ou acuse, se tiver certeza.'
+        : view.phase === 'andar'
+          ? `Você tirou ${(view.dice?.[0] ?? 0) + (view.dice?.[1] ?? 0)}: escolha uma casa acesa no tabuleiro.`
+          : view.phase === 'palpite'
+            ? 'Escolha quem e com o quê para palpitar neste cômodo.'
+            : 'Acuse se tiver certeza, ou termine a vez.'
   } else {
     title = `Vez de ${name(view.turn ?? 0)}`
     help = out ? 'Você errou a acusação: agora só mostra cartas.' : (view.log[view.log.length - 1] ?? '')

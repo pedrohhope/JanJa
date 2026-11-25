@@ -7,20 +7,27 @@ export interface Triple {
 
 export type MysteryOptions = Record<string, never>
 
-/** prazos: palpitar (ou acusar), mostrar carta e terminar a vez; quem saiu da sala joga rápido */
+/** prazos: rolar os dados, andar, palpitar (ou acusar), mostrar carta e terminar a vez; quem saiu da sala joga rápido */
+export const ROLL_MS = 30_000
+export const MOVE_MS = 30_000
 export const SUGGEST_MS = 60_000
 export const SHOW_MS = 30_000
 export const AFTER_MS = 30_000
 export const AWAY_MS = 3_000
 
 export type MysteryAction =
+  | { type: 'roll' }
+  /** andar até um cômodo (id) ou uma casa do corredor ("x,y"), dentro do que os dados deixam */
+  | { type: 'move'; to: string }
+  /** só no cômodo em que acabou de entrar: `onde` tem que ser ele */
   | ({ type: 'suggest' } & Triple)
   | ({ type: 'accuse' } & Triple)
   | { type: 'show'; card: string }
-  /** passar a vez (sem palpite) ou terminar depois do palpite */
+  /** ficar parado (depois de rolar), passar sem palpitar ou terminar depois do palpite */
   | { type: 'end' }
 
-export type MysteryPhase = 'palpite' | 'mostrar' | 'depois' | 'fim'
+/** rolar: começo da vez; andar: dados na mesa; palpite: entrou num cômodo */
+export type MysteryPhase = 'rolar' | 'andar' | 'palpite' | 'mostrar' | 'depois' | 'fim'
 
 export interface MysteryPlayerView {
   playerId: string
@@ -30,6 +37,8 @@ export interface MysteryPlayerView {
   /** errou a acusação: não joga mais, mas continua mostrando cartas */
   out: boolean
   away: boolean
+  /** onde está o peão: id do cômodo ou "x,y" no corredor */
+  pos: string
 }
 
 export interface SuggestionView extends Triple {
@@ -47,6 +56,12 @@ export interface MysteryView {
   myCards: string[]
   phase: MysteryPhase
   turn: number | null
+  /** os dados da vez (null antes de rolar) */
+  dice: [number, number] | null
+  /** quantas vezes rolaram na partida (chave da animação) */
+  rolls: number
+  /** para onde quem joga pode andar (só na fase andar) */
+  reach: string[]
   /** palpite em andamento */
   current: SuggestionView | null
   /** quem tem que mostrar agora */
@@ -65,6 +80,8 @@ export interface MysteryView {
 
 export type MysteryEvent =
   | { type: 'start'; first: number }
+  | { type: 'roll'; by: number; dice: [number, number] }
+  | { type: 'move'; by: number; to: string }
   | ({ type: 'suggest'; by: number } & Triple)
   | { type: 'shown'; by: number; to: number }
   | { type: 'none'; by: number }

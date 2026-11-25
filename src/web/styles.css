@@ -912,6 +912,36 @@ button.my-card { --bg: var(--paper); --bg-h: #fff; --bd: var(--rug); --bd-h: var
 .my-history small { color: var(--dust); }
 .my-secret { font-size: 13px; color: var(--lamp); padding: 4px 10px; border-radius: var(--r-ctl); border: 1px dashed var(--lamp); }
 .my-end .my-row { justify-content: center; }
+.my-board { position: relative; width: min(100%, calc(64vh * 21 / 15)); flex: none; background: var(--rug); border: 2px solid var(--rug); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+.my-cell { position: absolute; box-sizing: border-box; background: #5a4a3e; border: 0; padding: 0; border-radius: 0; }
+.my-cell.odd { background: #4f4036; }
+.my-cell.wall { background: var(--wall); }
+.my-cell.lit { background: #7a6233; box-shadow: inset 0 0 0 1px var(--lamp); }
+button.my-cell.lit { --bg: #7a6233; --bg-h: var(--lamp); --bd: var(--lamp); --bd-h: var(--lamp); cursor: pointer; min-height: 0; }
+button.my-cell.lit:hover { background: var(--lamp); }
+.my-room { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; padding: 4px 2px 0; background: var(--sofa); border: 2px solid var(--wall); border-radius: 0; color: var(--paper); overflow: hidden; }
+.my-room.hall { background: #3a2d26; }
+.my-room.lit { border-color: var(--lamp); box-shadow: inset 0 0 0 2px rgba(255, 201, 74, 0.35); }
+button.my-room.lit { --bg: var(--sofa); --bg-h: #4a3a30; --bd: var(--lamp); --bd-h: var(--lamp-hi); --fg: var(--paper); cursor: pointer; height: auto; min-height: 0; }
+.my-room-name { font-family: 'Pixelify Sans Variable', 'Pixelify Sans', monospace; font-size: clamp(9px, 1.1vw, 14px); line-height: 1; text-align: center; color: var(--paper); }
+.my-room.lit .my-room-name { color: var(--lamp); }
+.my-room-icon { image-rendering: pixelated; max-height: 40%; flex: none; opacity: 0.9; }
+.my-door { position: absolute; background: var(--lamp); pointer-events: none; z-index: 1; }
+.my-pawn { position: absolute; z-index: 2; pointer-events: none; display: flex; align-items: flex-end; justify-content: center; transition: left 0.35s var(--ease), top 0.35s var(--ease); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.my-pawn svg { image-rendering: pixelated; }
+.my-pawn.turn { animation: my-bob 1s ease-in-out infinite; z-index: 3; }
+.my-pawn.out { opacity: 0.4; }
+@keyframes my-bob { 50% { transform: translateY(-12%); } }
+.my-turnbox { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--r-panel); background: var(--sofa); border: 1px solid var(--rug); }
+.my-status { flex: 1; min-width: 180px; font-size: 14px; }
+.my-dice { display: inline-flex; gap: 6px; }
+.my-die { image-rendering: pixelated; }
+.my-die.idle { opacity: 0.35; }
+.my-die.roll { animation: ty-roll 0.45s var(--ease) both; }
+.my-die.roll + .my-die.roll { animation-delay: 0.05s; }
+.my-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.my-pick.accuse { border-color: var(--off); }
+@media (prefers-reduced-motion: reduce) { .my-pawn { transition: none; } .my-pawn.turn, .my-die.roll { animation: none; } }
 @media (max-width: 900px) { .my-scene { grid-template-columns: 1fr; } }
 
 /* sinuca: mesa em canvas pixel art */

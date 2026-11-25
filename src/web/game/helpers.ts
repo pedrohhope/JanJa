@@ -318,6 +318,10 @@ export function mysterySfxForEvent(ev: MysteryEvent): SfxCue | null {
   switch (ev.type) {
     case 'start':
       return { name: 'shuffle' }
+    case 'roll':
+      return { name: 'shuffle' }
+    case 'move':
+      return null
     case 'suggest':
       return { name: 'turn' }
     case 'shown':

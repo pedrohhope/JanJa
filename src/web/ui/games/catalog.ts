@@ -519,13 +519,13 @@ const ENTRIES: Omit<GameEntry, 'channel'>[] = [
     title: 'Mistério',
     icon: 'search',
     line: 'Descubra quem roubou o quadro, de 2 a 6',
-    description: 'Roubaram o quadro do Casarão da Vila durante a festa. Palpite quem foi, onde e com o quê: quem tiver uma das cartas mostra para você em segredo.',
+    description: 'Roubaram o quadro do Casarão da Vila durante a festa. Role os dados, ande pelos cômodos e palpite quem foi e com o quê: quem tiver uma das cartas mostra para você em segredo.',
     how: [
-      { icon: 'search', text: 'Na sua vez, palpite um suspeito, um lugar e um objeto.' },
+      { icon: 'search', text: 'Role os dados, entre num cômodo e palpite um suspeito e um objeto ali.' },
       { icon: 'cards', text: 'Quem tiver uma das cartas mostra só para você.' },
       { icon: 'crown', text: 'Tem certeza? Faça a acusação. Acertou, venceu.' }
     ],
-    category: 'cartas',
+    category: 'tabuleiro',
     quick: false,
     people: '2 a 6 pessoas',
     time: '20 min',

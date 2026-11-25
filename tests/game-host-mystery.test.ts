@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import { PLACES } from '../src/shared/games/mystery/cards'
 import type { MysteryView } from '../src/shared/games/mystery/types'
 import { GAMES } from '../src/shared/games/registry'
 import { seededRng } from '../src/shared/games/types'
@@ -74,10 +75,21 @@ describe('servidor + Mistério', () => {
     expect(hands.flat()).toHaveLength(17)
     expect(watcher.view()?.myCards).toEqual([])
     for (const [k, p] of ps.entries()) for (const c of hands[(k + 1) % 3]) expect(JSON.stringify(p.view())).not.toContain(`"${c}"`)
+    // rola e anda até alguém entrar num cômodo (no corredor a vez passa)
+    const places = new Set(PLACES.map((c) => c.id))
+    for (let k = 0; k < 20 && watcher.view()!.phase !== 'palpite'; k++) {
+      const who = ps.find((p) => p.view()?.you?.index === watcher.view()!.turn)!
+      await who.say({ type: 'game-action', seq: who.seq(), action: { type: 'roll' } })
+      const reach = who.view()!.reach
+      expect(reach.length).toBeGreaterThan(0)
+      await who.say({ type: 'game-action', seq: who.seq(), action: { type: 'move', to: reach.find((p) => places.has(p)) ?? reach[0] } })
+      expect(errors(who)).toHaveLength(0)
+    }
     const turn = watcher.view()!.turn!
     const who = ps.find((p) => p.view()?.you?.index === turn)!
-    await who.say({ type: 'game-action', seq: who.seq(), action: { type: 'suggest', quem: 'lia', onde: 'jardim', como: 'escada' } })
+    const onde = watcher.view()!.players[turn].pos
+    await who.say({ type: 'game-action', seq: who.seq(), action: { type: 'suggest', quem: 'lia', onde, como: 'escada' } })
     expect(errors(who)).toHaveLength(0)
-    expect(watcher.view()?.current).toMatchObject({ quem: 'lia', by: turn })
+    expect(watcher.view()?.current).toMatchObject({ quem: 'lia', onde, by: turn })
   })
 })

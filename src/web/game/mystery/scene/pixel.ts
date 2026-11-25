@@ -1,6 +1,6 @@
 /**
  * Pixel art do Mistério, desenhada em código: retratos 12x12 dos suspeitos (rosto base + o que
- * cada um usa na cabeça) e ícones 9x9 dos lugares e objetos. Sem React: o teste importa daqui.
+ * cada um usa na cabeça) e ícones 9x9 dos lugares (e do Saguão) e objetos. Sem React: o teste importa daqui.
  */
 export type Sprite = string[]
 
@@ -112,6 +112,8 @@ export const ICONS: Record<string, Sprite> = {
   jardim: ['...rrr...', '..rryrr..', '...rrr...', '....g....', '..g.g.g..', '...ggg...', '....g....', '.GGGGGGG.', '.........'],
   garagem: ['.........', '..kkkkk..', '.kbbbbbk.', 'kbbbbbbbk', 'kkkkkkkkk', '.kk...kk.', '.........', '.........', '.........'],
   adega: ['....k....', '...kGk...', '...kGk...', '..kGGGk..', '.kGGGGGk.', '.kGyyyGk.', '.kGGGGGk.', '.kGGGGGk.', '..kkkkk..'],
+  // Saguão: a moldura vazia do quadro roubado
+  saguao: ['yyyyyyyyy', 'ykkkkkkky', 'yk.....ky', 'yk.....ky', 'yk.....ky', 'yk.....ky', 'ykkkkkkky', 'yyyyyyyyy', '.........'],
   'pe-de-cabra': ['.......kk', '......kdk', '.....kdk.', '....kdk..', '...kdk...', '..kdk....', '.kdk.....', 'kddk.....', '.kk......'],
   'guarda-chuva': ['....k....', '..kkrkk..', '.krrrrrk.', 'krrrrrrrk', 'kkkkkkkkk', '....k....', '....k....', '..k.k....', '...k.....'],
   escada: ['.k.....k.', '.kkkkkkk.', '.k.....k.', '.kkkkkkk.', '.k.....k.', '.kkkkkkk.', '.k.....k.', '.kkkkkkk.', '.k.....k.'],

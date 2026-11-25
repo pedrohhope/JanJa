@@ -1,10 +1,11 @@
 import '@fontsource-variable/pixelify-sans'
 import { useEffect, useMemo, useState } from 'react'
-import { cardById, PLACES, SUSPECTS, TOOLS, type Kind, type MysteryCard } from '../../../../shared/games/mystery/cards'
+import { cardById, inPlace, PLACES, SUSPECTS, TOOLS, type Kind, type MysteryCard } from '../../../../shared/games/mystery/cards'
 import type { MysteryView, SuggestionView, Triple } from '../../../../shared/games/mystery/types'
 import { Icon } from '../../../ui/icons'
 import type { MysterySceneProps } from '../../contract'
 import { autoMarks, inEnvelope, merge, nextMark, ruledOut, type Mark, type Marks } from './notes'
+import { MysteryBoard, MysteryDice, pawnColor } from './MysteryBoard'
 import { ICONS, portrait, runs } from './pixel'
 
 const KIND_LABEL: Record<Kind, string> = { quem: 'Quem', onde: 'Onde', como: 'Com o quê' }
@@ -142,24 +143,68 @@ function suggestionLine(h: SuggestionView, v: MysteryView): string {
   return `${name(h.shownBy)} mostrou para ${name(h.by)}${shown}.`
 }
 
-/** Mistério: as suas cartas e o caderno; o palpite em andamento, escolher e mostrar carta. */
-export function MysteryScene({ view, onAct }: MysterySceneProps) {
+/** escolha de quem, onde e com o quê; `room` fixa o onde (palpite só no cômodo em que está) */
+function Picker({ pick, setPick, marks, room }: { pick: Partial<Triple>; setPick: (f: (p: Partial<Triple>) => Partial<Triple>) => void; marks: Marks; room?: string }) {
+  return (
+    <>
+      {GROUPS.map(([kind, cards]) => (
+        <div key={kind} className="my-pick-row" role="group" aria-label={KIND_LABEL[kind]}>
+          <span className="my-pick-label">{KIND_LABEL[kind]}</span>
+          <div className="my-row wrap">
+            {kind === 'onde' && room ? (
+              <MysteryCardTile id={room} small on />
+            ) : (
+              cards.map((c) => (
+                <MysteryCardTile
+                  key={c.id}
+                  id={c.id}
+                  small
+                  on={pick[kind] === c.id}
+                  dim={ruledOut(marks, c.id)}
+                  onClick={() => setPick((p) => ({ ...p, [kind]: c.id }))}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      ))}
+    </>
+  )
+}
+
+/** Mistério: as suas cartas e o caderno; o tabuleiro com dados; palpite, acusação e mostrar carta. */
+export function MysteryScene({ view, onAct, reducedMotion }: MysterySceneProps) {
   const me = view.you?.index ?? null
   const myTurn = me !== null && view.turn === me
   const auto = useMemo(() => autoMarks(view), [view])
   const [manual, cycle] = useManualMarks(view)
   const marks = useMemo(() => merge(auto, manual), [auto, manual])
   const [pick, setPick] = useState<Partial<Triple>>({})
+  const [accusing, setAccusing] = useState(false)
   const [sure, setSure] = useState(false)
 
   useEffect(() => {
     setSure(false)
+    setAccusing(false)
     if (!myTurn) setPick({})
   }, [myTurn, view.phase])
 
-  const full = !!(pick.quem && pick.onde && pick.como)
   const name = (i: number) => (i === me ? 'Você' : view.players[i]?.name ?? 'Alguém')
   const cur = view.current
+  const room = me !== null ? view.players[me].pos : ''
+  const canAccuse = myTurn && (view.phase === 'rolar' || view.phase === 'palpite' || view.phase === 'depois')
+  const guess: Partial<Triple> = view.phase === 'palpite' && !accusing ? { ...pick, onde: room } : pick
+  const full = !!(guess.quem && guess.onde && guess.como)
+  const sum = view.dice ? view.dice[0] + view.dice[1] : 0
+
+  let status: string
+  if (view.phase === 'fim') status = 'Partida encerrada.'
+  else if (!myTurn) status = view.turn !== null ? `Vez de ${name(view.turn)}.` : ''
+  else if (view.phase === 'rolar') status = 'Sua vez: role os dados para andar pelo Casarão.'
+  else if (view.phase === 'andar') status = `Você tirou ${sum}: clique numa casa acesa ou num cômodo.`
+  else if (view.phase === 'palpite') status = `Você entrou ${inPlace(room)}: palpite quem foi e com o quê.`
+  else if (view.phase === 'depois') status = 'Acuse se tiver certeza, ou termine a vez.'
+  else status = ''
 
   return (
     <div className="my-scene">
@@ -175,7 +220,10 @@ export function MysteryScene({ view, onAct }: MysterySceneProps) {
         <ul className="my-players">
           {view.players.map((p) => (
             <li key={p.playerId} className={`${view.turn === p.index ? 'turn' : ''} ${view.refuter === p.index ? 'showing' : ''} ${p.out ? 'out' : ''}`}>
-              <span>{name(p.index)}</span>
+              <span>
+                <i className="my-swatch" style={{ background: pawnColor(p.index) }} aria-hidden="true" />
+                {name(p.index)}
+              </span>
               <small>
                 {p.out ? 'errou a acusação' : `${p.cards} cartas`}
                 {p.away ? ' · fora' : ''}
@@ -183,6 +231,25 @@ export function MysteryScene({ view, onAct }: MysterySceneProps) {
             </li>
           ))}
         </ul>
+
+        <MysteryBoard view={view} onMove={(to) => onAct({ type: 'move', to })} />
+
+        <div className="my-turnbox">
+          <MysteryDice view={view} reducedMotion={reducedMotion} />
+          <span className="my-status">{status}</span>
+          {myTurn && !accusing && (
+            <div className="my-actions">
+              {view.phase === 'rolar' && (
+                <button className="primary" onClick={() => onAct({ type: 'roll' })}>
+                  Rolar os dados
+                </button>
+              )}
+              {view.phase === 'andar' && <button onClick={() => onAct({ type: 'end' })}>Ficar parado</button>}
+              {view.phase === 'depois' && <button onClick={() => onAct({ type: 'end' })}>Terminar a vez</button>}
+              {canAccuse && <button onClick={() => setAccusing(true)}>Acusar</button>}
+            </div>
+          )}
+        </div>
 
         {cur && (
           <div className="my-current">
@@ -209,34 +276,26 @@ export function MysteryScene({ view, onAct }: MysterySceneProps) {
           </div>
         )}
 
-        {myTurn && (view.phase === 'palpite' || view.phase === 'depois') && (
+        {myTurn && view.phase === 'palpite' && !accusing && (
           <div className="my-pick">
-            <strong className="pixel-font">{view.phase === 'palpite' ? 'Sua vez: escolha quem, onde e com o quê' : 'Quer acusar?'}</strong>
-            {GROUPS.map(([kind, cards]) => (
-              <div key={kind} className="my-pick-row" role="group" aria-label={KIND_LABEL[kind]}>
-                <span className="my-pick-label">{KIND_LABEL[kind]}</span>
-                <div className="my-row wrap">
-                  {cards.map((c) => (
-                    <MysteryCardTile
-                      key={c.id}
-                      id={c.id}
-                      small
-                      on={pick[kind] === c.id}
-                      dim={ruledOut(marks, c.id)}
-                      onClick={() => setPick((p) => ({ ...p, [kind]: c.id }))}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+            <strong className="pixel-font">Palpite {inPlace(room)}</strong>
+            <Picker pick={pick} setPick={setPick} marks={marks} room={room} />
             <div className="my-actions">
-              {view.phase === 'palpite' && (
-                <button className="primary" disabled={!full} onClick={() => onAct({ type: 'suggest', ...(pick as Triple) })}>
-                  Palpitar
-                </button>
-              )}
+              <button className="primary" disabled={!full} onClick={() => onAct({ type: 'suggest', ...(guess as Triple) })}>
+                Palpitar
+              </button>
+              <button onClick={() => onAct({ type: 'end' })}>Não palpitar</button>
+            </div>
+          </div>
+        )}
+
+        {canAccuse && accusing && (
+          <div className="my-pick accuse">
+            <strong className="pixel-font">Acusação: quem, onde e com o quê</strong>
+            <Picker pick={pick} setPick={setPick} marks={marks} />
+            <div className="my-actions">
               <button
-                className={sure ? 'danger' : ''}
+                className={sure ? 'danger' : 'primary'}
                 disabled={!full}
                 onClick={() => {
                   if (!sure) return setSure(true)
@@ -244,9 +303,16 @@ export function MysteryScene({ view, onAct }: MysterySceneProps) {
                   onAct({ type: 'accuse', ...(pick as Triple) })
                 }}
               >
-                {sure ? 'Confirmar: errou, sai do jogo' : 'Acusar'}
+                {sure ? 'Confirmar: se errar, sai do jogo' : 'Acusar'}
               </button>
-              <button onClick={() => onAct({ type: 'end' })}>{view.phase === 'palpite' ? 'Passar a vez' : 'Terminar a vez'}</button>
+              <button
+                onClick={() => {
+                  setAccusing(false)
+                  setSure(false)
+                }}
+              >
+                Voltar
+              </button>
             </div>
           </div>
         )}

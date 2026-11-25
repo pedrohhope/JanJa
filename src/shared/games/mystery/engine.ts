@@ -1,16 +1,21 @@
 /**
  * Motor do Mistério (dedução, de 2 a 6). Funções puras: sorteio e tempo só via GameCtx.
  *
- * Uma carta de cada tipo vai para o envelope; o resto é distribuído. Na sua vez você palpita
- * qualquer combinação; o próximo da roda que tiver alguma das três mostra uma, só para você.
+ * Uma carta de cada tipo vai para o envelope; o resto é distribuído. Todo mundo começa no Saguão.
+ * Na sua vez você rola dois dados e anda até essa soma de casas pelo Casarão (board.ts); entrou
+ * num cômodo, palpita quem e com o quê naquele lugar. O próximo da roda que tiver alguma das três
+ * mostra uma, só para você. A acusação vale de qualquer lugar, antes de rolar ou depois do palpite.
  * Acusou certo, venceu; errou, sai (mas continua mostrando cartas). Sobrou um, ele vence.
  * Ninguém vê as cartas dos outros nem a carta mostrada para outra pessoa.
  */
 import { shuffle, type GameCtx, type GameError, type PlayerRef, type Step } from '../types'
-import { ALL_CARDS, cardById, cardName, PLACES, SUSPECTS, TOOLS, tripleText, type Kind } from './cards'
+import { isValidPos, reachable, START } from './board'
+import { ALL_CARDS, cardById, cardName, inPlace, PLACES, SUSPECTS, TOOLS, tripleText, type Kind } from './cards'
 import {
   AFTER_MS,
   AWAY_MS,
+  MOVE_MS,
+  ROLL_MS,
   SHOW_MS,
   SUGGEST_MS,
   type MysteryAction,
@@ -29,11 +34,13 @@ interface Suggestion extends Triple {
 }
 
 export interface MysteryState {
-  players: Array<{ playerId: string; name: string; away: boolean; out: boolean }>
+  players: Array<{ playerId: string; name: string; away: boolean; out: boolean; pos: string }>
   hands: string[][]
   solution: Triple
   phase: MysteryPhase
   turn: number
+  dice: [number, number] | null
+  rolls: number
   current: Suggestion | null
   refuter: number | null
   history: Suggestion[]
@@ -53,13 +60,20 @@ function say(s: MysteryState, text: string): void {
 }
 
 const name = (s: MysteryState, i: number) => s.players[i].name
+const isPlace = (pos: string): boolean => PLACES.some((p) => p.id === pos)
+const PHASE_MS: Record<Exclude<MysteryPhase, 'fim'>, number> = {
+  rolar: ROLL_MS,
+  andar: MOVE_MS,
+  palpite: SUGGEST_MS,
+  mostrar: SHOW_MS,
+  depois: AFTER_MS
+}
 const matches = (s: MysteryState, i: number, t: Triple): string[] => s.hands[i].filter((c) => c === t.quem || c === t.onde || c === t.como)
 
 function setUntil(s: MysteryState, now: number): void {
   if (s.phase === 'fim') return void (s.until = null)
   const who = s.phase === 'mostrar' ? (s.refuter as number) : s.turn
-  const ms = s.phase === 'palpite' ? SUGGEST_MS : s.phase === 'mostrar' ? SHOW_MS : AFTER_MS
-  s.until = now + (s.players[who].away ? AWAY_MS : ms)
+  s.until = now + (s.players[who].away ? AWAY_MS : PHASE_MS[s.phase])
 }
 
 function finish(s: MysteryState, winner: number | null, events: MysteryEvent[]): void {
@@ -85,7 +99,8 @@ function nextTurn(s: MysteryState, now: number, events: MysteryEvent[]): void {
       break
     }
   }
-  s.phase = 'palpite'
+  s.phase = 'rolar'
+  s.dice = null
   s.current = null
   s.refuter = null
   setUntil(s, now)
@@ -135,6 +150,10 @@ export function parseAction(raw: unknown): MysteryAction | GameError {
   if (typeof raw !== 'object' || raw === null) return err('acao-invalida', 'Ação inválida.')
   const a = raw as Record<string, unknown>
   switch (a.type) {
+    case 'roll':
+      return { type: 'roll' }
+    case 'move':
+      return typeof a.to === 'string' && isValidPos(a.to) ? { type: 'move', to: a.to } : err('acao-invalida', 'Lugar inválido.')
     case 'suggest':
     case 'accuse':
       if (!isTriple(a)) return err('acao-invalida', 'Escolha quem, onde e com o quê.')
@@ -161,11 +180,13 @@ export function setup(players: PlayerRef[], _options: MysteryOptions, ctx: GameC
   // distribui a partir de quem começa (quem joga depois recebe as que sobram)
   rest.forEach((c, k) => hands[(first + k) % n].push(c))
   const s: MysteryState = {
-    players: players.map((p) => ({ playerId: p.playerId, name: p.name, away: false, out: false })),
+    players: players.map((p) => ({ playerId: p.playerId, name: p.name, away: false, out: false, pos: START })),
     hands,
     solution,
-    phase: 'palpite',
+    phase: 'rolar',
     turn: first,
+    dice: null,
+    rolls: 0,
     current: null,
     refuter: null,
     history: [],
@@ -193,8 +214,32 @@ export function apply(state: MysteryState, playerId: string, action: MysteryActi
   }
   if (s.turn !== i) return err('nao-e-sua-vez', 'Espere a sua vez.')
   switch (action.type) {
+    case 'roll': {
+      if (s.phase !== 'rolar') return err('acao-invalida', 'Você já rolou os dados.')
+      const dice: [number, number] = [1 + ctx.rng.int(6), 1 + ctx.rng.int(6)]
+      s.dice = dice
+      s.rolls++
+      s.phase = 'andar'
+      events.push({ type: 'roll', by: i, dice })
+      say(s, `${name(s, i)} tirou ${dice[0] + dice[1]} nos dados.`)
+      setUntil(s, now)
+      break
+    }
+    case 'move': {
+      if (s.phase !== 'andar' || !s.dice) return err('acao-invalida', 'Role os dados primeiro.')
+      if (!reachable(s.players[i].pos, s.dice[0] + s.dice[1]).includes(action.to)) return err('acao-invalida', 'Não dá para chegar lá com esses dados.')
+      s.players[i].pos = action.to
+      events.push({ type: 'move', by: i, to: action.to })
+      if (isPlace(action.to)) {
+        say(s, `${name(s, i)} entrou ${inPlace(action.to)}.`)
+        s.phase = 'palpite'
+        setUntil(s, now)
+      } else nextTurn(s, now, events)
+      break
+    }
     case 'suggest': {
-      if (s.phase !== 'palpite') return err('acao-invalida', 'Você já palpitou nesta vez.')
+      if (s.phase !== 'palpite') return err('acao-invalida', s.phase === 'rolar' || s.phase === 'andar' ? 'Entre num cômodo para palpitar.' : 'Você já palpitou nesta vez.')
+      if (action.onde !== s.players[i].pos) return err('acao-invalida', 'O palpite é no cômodo em que você está.')
       const t: Triple = { quem: action.quem, onde: action.onde, como: action.como }
       s.current = { ...t, by: i, shownBy: undefined }
       events.push({ type: 'suggest', by: i, ...t })
@@ -203,7 +248,7 @@ export function apply(state: MysteryState, playerId: string, action: MysteryActi
       break
     }
     case 'accuse': {
-      if (s.phase !== 'palpite' && s.phase !== 'depois') return err('acao-invalida', 'Agora não dá para acusar.')
+      if (s.phase !== 'rolar' && s.phase !== 'palpite' && s.phase !== 'depois') return err('acao-invalida', 'Agora não dá para acusar.')
       const t: Triple = { quem: action.quem, onde: action.onde, como: action.como }
       const correct = t.quem === s.solution.quem && t.onde === s.solution.onde && t.como === s.solution.como
       s.accusations.push({ ...t, by: i, correct })
@@ -217,8 +262,10 @@ export function apply(state: MysteryState, playerId: string, action: MysteryActi
       break
     }
     case 'end':
-      if (s.phase !== 'palpite' && s.phase !== 'depois') return err('acao-invalida', 'Espere a carta.')
-      if (s.phase === 'palpite') say(s, `${name(s, i)} passou a vez.`)
+      if (s.phase === 'rolar') return err('acao-invalida', 'Role os dados primeiro.')
+      if (s.phase === 'mostrar') return err('acao-invalida', 'Espere a carta.')
+      if (s.phase === 'andar') say(s, `${name(s, i)} ficou parado.`)
+      if (s.phase === 'palpite') say(s, `${name(s, i)} não palpitou.`)
       nextTurn(s, now, events)
       break
   }
@@ -234,7 +281,7 @@ export function tick(state: MysteryState, ctx: GameCtx): S {
     const i = s.refuter as number
     show(s, i, matches(s, i, s.current as Triple)[0], ctx.now, events)
   } else {
-    if (s.phase === 'palpite') say(s, `${name(s, s.turn)} não palpitou a tempo.`)
+    if (s.phase !== 'depois') say(s, `${name(s, s.turn)} não jogou a tempo.`)
     nextTurn(s, ctx.now, events)
   }
   return { state: s, events }
@@ -265,10 +312,13 @@ export function view(s: MysteryState, playerId: string | null, now: number): Mys
   const over = s.phase === 'fim'
   return {
     you: me !== null ? { playerId: playerId as string, index: me } : null,
-    players: s.players.map((p, k) => ({ playerId: p.playerId, name: p.name, index: k, cards: s.hands[k].length, out: p.out, away: p.away })),
+    players: s.players.map((p, k) => ({ playerId: p.playerId, name: p.name, index: k, cards: s.hands[k].length, out: p.out, away: p.away, pos: p.pos })),
     myCards: me !== null ? [...s.hands[me]] : [],
     phase: s.phase,
     turn: over ? null : s.turn,
+    dice: s.dice,
+    rolls: s.rolls,
+    reach: s.phase === 'andar' && s.dice ? reachable(s.players[s.turn].pos, s.dice[0] + s.dice[1]) : [],
     current: s.current ? suggestionFor(s.current, me) : null,
     refuter: s.refuter,
     myChoices: me !== null && s.phase === 'mostrar' && s.refuter === me ? matches(s, me, s.current as Triple) : [],

@@ -52,7 +52,10 @@ export const cardName = (id: string): string => cardById(id)?.name ?? id
 export function tripleText(t: { quem: string; onde: string; como: string }): string {
   const tool = cardName(t.como)
   const art = /^(Escada|Lanterna|Tesoura)/.test(tool) ? 'a' : 'o'
-  return `${cardName(t.quem)}, ${prep(t.onde)} ${cardName(t.onde)}, com ${art} ${tool}`
+  return `${cardName(t.quem)}, ${inPlace(t.onde)}, com ${art} ${tool}`
 }
+
+/** "na Cozinha", "no Porão" */
+export const inPlace = (onde: string): string => `${prep(onde)} ${cardName(onde)}`
 
 const prep = (onde: string): string => (['varanda', 'cozinha', 'biblioteca', 'garagem', 'adega'].includes(onde) ? 'na' : 'no')

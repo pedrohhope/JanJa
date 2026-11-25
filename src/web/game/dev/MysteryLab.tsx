@@ -10,7 +10,7 @@ const NAMES = ['Você', 'Bia', 'Caio', 'Duda', 'Edu', 'Flor']
 const rng: Rng = { int: (max) => Math.floor(Math.random() * max) }
 const ctx = () => ({ now: Date.now(), rng })
 
-/** Laboratório do Mistério (só em dev): o motor aqui, com bots que deduzem. `?n=4` e `window.__misterio.state()`. */
+/** Laboratório do Mistério (só em dev): o motor aqui, com bots que deduzem. `?n=4` e `window.__misterio` (`state()`, `mine()`, `enter('cozinha')`). */
 export function MysteryLab(): ReactElement {
   const n = Math.min(6, Math.max(2, Number(new URLSearchParams(location.search).get('n') ?? 4)))
   const players = NAMES.slice(0, n).map((name, i) => ({ playerId: i ? `bot${i}` : 'eu', name }))
@@ -45,7 +45,15 @@ export function MysteryLab(): ReactElement {
   }, [state])
 
   useEffect(() => {
-    ;(window as unknown as { __misterio: unknown }).__misterio = { state: () => ref.current }
+    const force = (f: (s: MysteryState) => Partial<MysteryState>) => setState((s) => ({ ...s, ...f(s), current: null, refuter: null, until: Date.now() + 60_000 }))
+    ;(window as unknown as { __misterio: unknown }).__misterio = {
+      state: () => ref.current,
+      /** passa a vez para você, antes de rolar */
+      mine: () => force(() => ({ turn: 0, phase: 'rolar', dice: null })),
+      /** você entra no cômodo e palpita ali */
+      enter: (room: string) =>
+        force((s) => ({ turn: 0, phase: 'palpite', dice: [3, 4], rolls: s.rolls + 1, players: s.players.map((p, i) => (i ? p : { ...p, pos: room })) }))
+    }
   })
 
   const v = view(state, 'eu', Date.now())

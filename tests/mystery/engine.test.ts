@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ALL_CARDS, tripleText } from '../../src/shared/games/mystery/cards'
 import { apply, nextDeadline, setPresence, setup, tick, view, type MysteryState } from '../../src/shared/games/mystery/engine'
-import { AWAY_MS, SHOW_MS, SUGGEST_MS, type MysteryAction, type Triple } from '../../src/shared/games/mystery/types'
+import { distances, reachable, START } from '../../src/shared/games/mystery/board'
+import { AWAY_MS, ROLL_MS, SHOW_MS, SUGGEST_MS, type MysteryAction, type Triple } from '../../src/shared/games/mystery/types'
 import { isGameError, seededRng, type GameCtx } from '../../src/shared/games/types'
 
 const T0 = 1_000_000
@@ -22,7 +23,13 @@ function act(s: MysteryState, p: number, a: MysteryAction, now = T0): MysterySta
   if (isGameError(r)) throw new Error(r.message)
   return r.state
 }
-const suggest = (s: MysteryState, p: number, t: Triple) => act(s, p, { type: 'suggest', ...t })
+/** palpite direto: põe a pessoa dentro do cômodo do palpite, como se tivesse acabado de entrar */
+function suggest(state: MysteryState, p: number, t: Triple): MysteryState {
+  const s = structuredClone(state)
+  s.phase = 'palpite'
+  s.players[p].pos = t.onde
+  return act(s, p, { type: 'suggest', ...t })
+}
 
 describe('Mistério', () => {
   it('uma de cada no envelope e o resto distribuído, sem repetir', () => {
@@ -61,7 +68,8 @@ describe('Mistério', () => {
     expect(view(s, 'p2', T0).history[0].card).toBeUndefined()
     expect(view(s, 'p2', T0).history[0].shownBy).toBe(1)
     expect(view(s, null, T0).history[0].card).toBeUndefined()
-    expect(JSON.stringify(view(s, 'p2', T0).players)).not.toContain('cozinha')
+    // o peão na Cozinha é público; as cartas não
+    expect(JSON.stringify(view(s, 'p2', T0).players.map(({ pos: _pos, ...p }) => p))).not.toContain('cozinha')
     expect(view(s, 'p2', T0).solution).toBeNull()
   })
 
@@ -120,13 +128,62 @@ describe('Mistério', () => {
 
   it('prazos: passa a vez sozinho e mostra a primeira carta que servir', () => {
     let s = table([['odete'], ['lia', 'cozinha']])
-    expect(nextDeadline(s)).toBe(T0 + SUGGEST_MS)
-    s = tick(s, ctx(T0 + SUGGEST_MS)).state
+    expect(nextDeadline(s)).toBe(T0 + ROLL_MS)
+    s = tick(s, ctx(T0 + ROLL_MS)).state
     expect(s.turn).toBe(1)
+    expect(s.phase).toBe('rolar')
+    s.phase = 'palpite'
+    s.until = T0 + SUGGEST_MS
+    s = tick(s, ctx(T0 + SUGGEST_MS)).state
+    expect(s.turn).toBe(0)
     s = table([['odete'], ['lia', 'cozinha']])
     s = suggest(s, 0, { quem: 'lia', onde: 'cozinha', como: 'escada' })
     s = tick(s, ctx(T0 + SHOW_MS)).state
     expect(s.history[0]).toMatchObject({ shownBy: 1, card: 'lia' })
+  })
+
+  it('todo mundo começa no Saguão; rola, anda e só palpita no cômodo em que entrou', () => {
+    let s = table([['odete'], ['valdir']])
+    expect(s.players.every((p) => p.pos === START)).toBe(true)
+    expect(isGameError(apply(s, 'p0', { type: 'suggest', ...SOL }, ctx()))).toBe(true)
+    expect(isGameError(apply(s, 'p0', { type: 'move', to: 'biblioteca' }, ctx()))).toBe(true)
+    s = act(s, 0, { type: 'roll' })
+    expect(s.phase).toBe('andar')
+    expect(isGameError(apply(s, 'p0', { type: 'roll' }, ctx()))).toBe(true)
+    // dados combinados: 2 + 1 = 3 passos, a Biblioteca fica a 3 do Saguão
+    s.dice = [2, 1]
+    const v = view(s, 'p1', T0)
+    expect(v.reach).toContain('biblioteca')
+    expect(v.reach).not.toContain('porao')
+    expect(v.reach).not.toContain(START)
+    expect(isGameError(apply(s, 'p0', { type: 'move', to: 'porao' }, ctx()))).toBe(true)
+    s = act(s, 0, { type: 'move', to: 'biblioteca' })
+    expect(s.phase).toBe('palpite')
+    expect(view(s, 'p1', T0).players[0].pos).toBe('biblioteca')
+    // o lugar do palpite é o cômodo em que está
+    expect(isGameError(apply(s, 'p0', { type: 'suggest', ...SOL }, ctx()))).toBe(true)
+    s = act(s, 0, { type: 'suggest', quem: 'valdir', onde: 'biblioteca', como: 'escada' })
+    expect(s.history[0]).toMatchObject({ shownBy: 1, card: 'valdir' })
+    s = act(s, 0, { type: 'end' })
+    expect(s.turn).toBe(1)
+    expect(s.dice).toBeNull()
+  })
+
+  it('parar no corredor ou no Saguão passa a vez; acusar vale antes de rolar', () => {
+    let s = table([['odete'], ['valdir']])
+    s = act(s, 0, { type: 'roll' })
+    const cell = view(s, 'p0', T0).reach.find((p) => p.includes(','))!
+    s = act(s, 0, { type: 'move', to: cell })
+    expect(s.turn).toBe(1)
+    expect(s.players[0].pos).toBe(cell)
+    s = act(s, 1, { type: 'accuse', ...SOL })
+    expect(s.winner).toBe(1)
+  })
+
+  it('não volta para o cômodo de onde saiu na mesma vez', () => {
+    expect(reachable('cozinha', 12)).not.toContain('cozinha')
+    expect(reachable('cozinha', 12)).toContain('porao')
+    expect(distances(START).get('biblioteca')).toBe(3)
   })
 
   it('quem sai da sala na vez dele joga rápido', () => {
