@@ -107,6 +107,8 @@ export interface Prefs {
   trucoGuide: boolean
   /** xadrez: tabuleiro em 3D em vez de visto de cima */
   chess3d: boolean
+  /** tiro: primeira pessoa (3D) ou visto de cima (2D); null = automático (3D no computador, 2D em aparelho só de toque) */
+  tiro3d: boolean | null
 }
 
 /** Valor salvo que não é uma rota conhecida (versão antiga, edição à mão) volta para o automático. */
@@ -114,6 +116,9 @@ export function parseRoutePref(value: unknown): RoutePref {
   const r = RoutePrefSchema.safeParse(value)
   return r.success ? r.data : 'auto'
 }
+
+/** Valor salvo que não é true nem false (versão antiga, edição à mão) volta para o automático (null). */
+export const parseTiro3d = (value: unknown): boolean | null => (typeof value === 'boolean' ? value : null)
 
 const DEFAULT_PREFS: Prefs = {
   micMuted: true,
@@ -134,6 +139,7 @@ const DEFAULT_PREFS: Prefs = {
   screenRoute: 'auto',
   trucoGuide: true,
   chess3d: false,
+  tiro3d: null,
   micNoiseSuppression: true,
   micGate: 0
 }
@@ -177,7 +183,7 @@ let cache: Prefs | undefined
 export function getPrefs(): Prefs {
   if (!cache) {
     const merged = migrateApproval(migrateAuto({ ...DEFAULT_PREFS, ...legacy(), ...loadJson<Partial<Prefs>>('prefs', {}) }))
-    cache = { ...merged, screenRoute: parseRoutePref(merged.screenRoute) }
+    cache = { ...merged, screenRoute: parseRoutePref(merged.screenRoute), tiro3d: parseTiro3d(merged.tiro3d) }
   }
   return cache
 }
@@ -185,6 +191,7 @@ export function getPrefs(): Prefs {
 export function setPrefs(patch: Partial<Prefs>): Prefs {
   cache = { ...getPrefs(), ...patch }
   cache.screenRoute = parseRoutePref(cache.screenRoute)
+  cache.tiro3d = parseTiro3d(cache.tiro3d)
   saveJson('prefs', cache)
   return cache
 }

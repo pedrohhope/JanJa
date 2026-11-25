@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DASH_COOLDOWN_TICKS, RESPAWN_TICKS, TICK_HZ, type ScoreLine } from '../../src/shared/games/shooter/types'
-import { RESPAWN_S, DASH_COOLDOWN_MS, ammoText, callFor, isStreakCall, netLabel, podiumOf } from '../../src/web/game/shooter/hudLogic'
+import { RESPAWN_S, DASH_COOLDOWN_MS, ammoText, callFor, isStreakCall, netLabel, podiumOf, tiro3dOn } from '../../src/web/game/shooter/hudLogic'
 import { SHOOTER_SFX } from '../../src/web/game/contract'
 import { BOT_TONES, createSfxBus, sfxGate, shooterTrack } from '../../src/web/game/shooter/sfxBus'
 import { sfxDuration, sfxPlan } from '../../src/web/game/audio/sfx'
@@ -103,5 +103,16 @@ describe('som e música do tiro', () => {
     off()
     bus.emit('abate')
     expect(got).toEqual(['abate:0.5'])
+  })
+})
+
+describe('visão 2D/3D', () => {
+  it('sem escolha vale o 3D, menos em aparelho só de toque', () => {
+    expect(tiro3dOn(null, false)).toBe(true)
+    expect(tiro3dOn(null, true)).toBe(false)
+  })
+  it('a escolha salva manda', () => {
+    expect(tiro3dOn(true, true)).toBe(true)
+    expect(tiro3dOn(false, false)).toBe(false)
   })
 })

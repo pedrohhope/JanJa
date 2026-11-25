@@ -33,6 +33,10 @@ export interface ShooterHudProps {
   names?: Record<string, string>
   /** miniatura/destaque: o HUD some */
   hidden?: boolean
+  /** visão em primeira pessoa ligada (muda a ajuda) */
+  view3d?: boolean
+  /** troca 2D/3D; sem isto o botão não aparece */
+  onView3d?: (on: boolean) => void
 }
 
 // ---------------------------------------------------------------- ícones de arma (pixel art em <img>)
@@ -193,8 +197,41 @@ interface HelpSection {
   lines: ReactNode[]
 }
 
-function helpSections(family: PadFamily): HelpSection[] {
+function helpSections(family: PadFamily, fps = false): HelpSection[] {
   const g = (b: Parameters<typeof Glyph>[0]['b']) => <Glyph b={b} family={family} />
+  if (fps) {
+    return [
+      {
+        device: 'teclado',
+        title: 'Teclado e mouse',
+        lines: [
+          <>Clique na tela para travar o mouse (<Key k="Esc" /> solta).</>,
+          <>O mouse gira a visão.</>,
+          <><Key k="WASD" /> andam (A e D de lado).</>,
+          <>As setas giram e andam.</>,
+          <>Clique atira (segure).</>,
+          <><Key k="Espaço" /> dá um dash.</>,
+          <><Key k="Q" /> ou botão direito joga granada.</>,
+          <><Key k="Tab" /> mostra o placar.</>
+        ]
+      },
+      {
+        device: 'controle',
+        title: 'Controle',
+        lines: [
+          <>{g('LS')} anda e {g('RS')} gira.</>,
+          <>{g('RT')} atira e {g('LT')} joga granada.</>,
+          <>{g('A')} ou {g('LB')} dá um dash.</>,
+          <>Segure {g('View')} para ver o placar.</>
+        ]
+      },
+      {
+        device: 'toque',
+        title: 'Celular',
+        lines: ['A metade esquerda da tela anda.', 'Arraste na direita para girar.', 'Os botões Atirar, Dash e Granada ficam no canto.']
+      }
+    ]
+  }
   return [
     {
       device: 'teclado',
@@ -442,6 +479,16 @@ export function ShooterHud(p: ShooterHudProps): ReactElement | null {
         <span className={`tiro-net ${snap.net}`} role="status">
           {netLabel(snap.net, snap.pingMs)}
         </span>
+        {p.onView3d && (
+          <div className="tiro-view-toggle" role="group" aria-label="Como ver o jogo">
+            <button className={!p.view3d ? 'on' : ''} aria-pressed={!p.view3d} onClick={() => p.onView3d?.(false)} data-tip="Visão de cima">
+              2D
+            </button>
+            <button className={p.view3d ? 'on' : ''} aria-pressed={!!p.view3d} onClick={() => p.onView3d?.(true)} data-tip="Primeira pessoa: clique para travar o mouse, Esc solta">
+              3D
+            </button>
+          </div>
+        )}
         <button className={`icon-btn ${board ? 'on' : ''}`} onClick={() => setBoard((b) => !b)} data-tip={device === 'controle' ? `Placar (${padLabel('View', family)})` : device === 'toque' ? 'Placar' : 'Placar (Tab)'} aria-label="Placar" aria-pressed={board}>
           <Icon name="chart" size={20} />
         </button>
@@ -469,7 +516,7 @@ export function ShooterHud(p: ShooterHudProps): ReactElement | null {
               <Icon name="x" size={16} />
             </button>
           </div>
-          {[...helpSections(family)].sort((a, b) => Number(b.device === device) - Number(a.device === device)).map((h) => (
+          {[...helpSections(family, !!p.view3d)].sort((a, b) => Number(b.device === device) - Number(a.device === device)).map((h) => (
             <section key={h.title} className={h.device === device ? 'now' : ''}>
               <h3>{h.title}{h.device === device && <em> (agora)</em>}</h3>
               <ul>

@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
 import type { KillLimit, MapId, MatchMinutes, SimState } from '../../../shared/games/shooter/types'
 import { toneOf } from '../../ui/Avatar'
 import { ShooterHud } from '../../ui/ShooterHud'
 import type { InputState, ShooterSession } from '../shooter/contract'
 import { createLocalSession } from '../shooter/net/local'
 import { ShooterScene } from '../shooter/scene/ShooterScene'
+import { isTouchOnly, tiro3dOn } from '../shooter/hudLogic'
+import { getPrefs, setPrefs } from '../../storage'
+
+// a cena 3D (Three.js) só carrega quando a visão 3D está ligada: o lab 2D não puxa o three
+const Shooter3DScene = lazy(() => import('../shooter/scene3d').then((m) => ({ default: m.Shooter3DScene })))
 
 type Local = ShooterSession & { sim(): SimState }
 
@@ -28,7 +33,7 @@ interface TiroLab {
 
 /**
  * Laboratório do Tiro na Sala (só em dev): a simulação de verdade rodando aqui mesmo, sem rede.
- * `?map=quintal&bots=3&minutes=3&size=960x540&reduced=1&hud=0` e `window.__tiro` (frame, sim, teleport, hold, auto, give, hp).
+ * `?map=quintal&bots=3&minutes=3&size=960x540&reduced=1&hud=0&view=3d` (`view=2d` ou `3d`; sem o parâmetro vale a preferência do botão 2D/3D) e `window.__tiro` (frame, sim, teleport, hold, auto, give, hp).
  */
 export function ShooterLab(): ReactElement {
   const q = new URLSearchParams(location.search)
@@ -40,6 +45,11 @@ export function ShooterLab(): ReactElement {
   const [size, setSize] = useState(q.get('size') ?? 'livre')
   const [reduced, setReduced] = useState(q.get('reduced') === '1')
   const showHud = q.get('hud') !== '0'
+  const [view3d, setView3d] = useState(() => (q.get('view') === '3d' ? true : q.get('view') === '2d' ? false : tiro3dOn(getPrefs().tiro3d, isTouchOnly())))
+  const chooseView = useCallback((v: boolean) => {
+    setView3d(v)
+    setPrefs({ tiro3d: v })
+  }, [])
 
   const base = useMemo<Local>(() => createLocalSession({ mapId, bots, minutes, killLimit, seed: q.has('seed') ? Number(q.get('seed')) : undefined }), [run]) // eslint-disable-line react-hooks/exhaustive-deps
   const override = useMemo<{ cur: Partial<InputState> | null; auto: boolean }>(() => ({ cur: null, auto: false }), [])
@@ -122,8 +132,14 @@ export function ShooterLab(): ReactElement {
   return (
     <div style={{ background: '#0b0807', minHeight: '100vh' }}>
       <div style={{ position: 'relative', overflow: 'hidden', background: '#221C19', ...sty }} data-lab-stage>
-        <ShooterScene session={session} colors={colors} reducedMotion={reduced} onSfx={undefined} />
-        {showHud && <ShooterHud session={session} you="voce" colors={colors} canManage onPlayAgain={() => setRun((r) => r + 1)} onClose={() => undefined} names={undefined} />}
+        {view3d ? (
+          <Suspense fallback={null}>
+            <Shooter3DScene key="3d" session={session} colors={colors} reducedMotion={reduced} onSfx={undefined} />
+          </Suspense>
+        ) : (
+          <ShooterScene key="2d" session={session} colors={colors} reducedMotion={reduced} onSfx={undefined} />
+        )}
+        {showHud && <ShooterHud session={session} you="voce" colors={colors} canManage onPlayAgain={() => setRun((r) => r + 1)} onClose={() => undefined} names={undefined} view3d={view3d} onView3d={chooseView} />}
       </div>
       {q.get('ui') === '1' && (
         <div style={{ font: '12px system-ui', color: '#ddd', padding: 6, display: 'flex', gap: 8 }}>

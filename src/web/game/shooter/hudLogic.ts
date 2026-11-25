@@ -48,3 +48,15 @@ export function podiumOf<T>(ranking: readonly T[]): { top: T[]; rest: T[] } {
   return { top: ranking.slice(0, 3), rest: ranking.slice(3) }
 }
 
+
+/** 3D ligado? Sem escolha salva (null), vale o 3D, menos em aparelho só de toque. */
+export const tiro3dOn = (pref: boolean | null, touchOnly: boolean): boolean => (pref === null ? !touchOnly : pref)
+
+/** aparelho só de toque (celular, tablet): tem toque e não tem passar de mouse */
+export function isTouchOnly(): boolean {
+  try {
+    return navigator.maxTouchPoints > 0 && window.matchMedia('(hover: none)').matches
+  } catch {
+    return false
+  }
+}

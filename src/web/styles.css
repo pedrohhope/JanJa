@@ -1397,6 +1397,9 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 .tiro-bar.dash i { background: var(--lamp); }
 .tiro-tools { position: absolute; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 2px; padding: 3px 6px; background: rgba(34, 28, 25, 0.82); border-radius: var(--r-ctl); pointer-events: auto; text-shadow: none; }
 .tiro-net { color: var(--dust); font-size: 12px; margin-right: 6px; white-space: nowrap; }
+.tiro-view-toggle { display: flex; gap: 2px; margin-right: 4px; }
+.tiro-view-toggle button { --bg: var(--sofa); --bd: var(--rug); --fg: var(--dust); height: 28px; min-width: 34px; padding: 0 7px; font-family: 'Pixelify Sans Variable', 'Pixelify Sans', monospace; font-size: 14px; }
+.tiro-view-toggle button.on { --bg: var(--lamp); --bg-h: var(--lamp-hi); --bd: var(--lamp); --fg: var(--wall); }
 .tiro-net.relay { color: var(--lamp); }
 .tiro-net.trocando-host, .tiro-net.offline { color: var(--off); }
 .tiro-help { position: absolute; right: 8px; bottom: 52px; width: min(380px, calc(100% - 16px)); max-height: calc(100% - 70px); overflow: auto; padding: 12px 14px; background: var(--sofa); border: 1px solid var(--rug); border-radius: var(--r-panel); pointer-events: auto; text-shadow: none; font-family: 'Archivo Variable', system-ui, sans-serif; font-size: 14px; }
@@ -1444,6 +1447,37 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 .tiro-help section.now { padding: 2px 10px 6px; margin: 6px -10px 0; background: var(--wall); border-left: 3px solid var(--lamp); border-radius: 4px; }
 .tiro-help h3 em { font-style: normal; color: var(--lamp); }
 .tiro-help li { margin: 3px 0; }
+/* Tiro na Sala em primeira pessoa (cena 3D): dois canvas empilhados, o do Three e o overlay 2D */
+.tiro3d-scene { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--wall); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; outline: none; cursor: crosshair; }
+.tiro3d-scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.tiro3d-overlay { pointer-events: none; }
+.tiro3d-lock { --bg: rgba(34, 28, 25, 0.86); --bg-h: rgba(34, 28, 25, 0.94); --bd: var(--lamp); --bd-h: var(--lamp-hi); --fg: var(--paper); position: absolute; left: 0; right: 0; bottom: 26%; margin: 0 auto; width: fit-content; height: auto; z-index: 3; flex-direction: column; gap: 4px; padding: 14px 26px; border-width: 2px; border-radius: var(--r-panel); font-family: 'Pixelify Sans Variable', 'Pixelify Sans', monospace; font-size: 22px; pointer-events: auto; }
+.tiro3d-lock[hidden] { display: none; }
+.tiro3d-lock small { font-size: 13px; color: var(--dust); }
+.tiro3d-touch { position: absolute; inset: 0; z-index: 2; pointer-events: none; display: none; }
+.tiro3d-scene.is-touch .tiro3d-touch { display: block; }
+@media (pointer: coarse) { .tiro3d-touch { display: block; } }
+.tiro3d-stick { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(243, 235, 221, 0.4); background: rgba(34, 28, 25, 0.4); }
+.tiro3d-stick.hot { border-color: var(--lamp); background: rgba(255, 201, 74, 0.12); }
+.tiro3d-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(243, 235, 221, 0.55); border: 2px solid var(--wall); }
+/* botões acima do .tiro-tools (embaixo à direita) e longe do .tiro-me */
+button.tiro3d-btn { position: absolute; pointer-events: auto; right: 20px; width: 72px; height: 72px; padding: 0; border-radius: 50%; font-family: 'Pixelify Sans Variable', 'Pixelify Sans', monospace; font-size: 14px; --bg: rgba(46, 38, 34, 0.82); --bg-h: rgba(46, 38, 34, 0.82); --bd: rgba(243, 235, 221, 0.45); --bd-h: var(--lamp); touch-action: none; }
+button.tiro3d-btn.fire { bottom: 64px; width: 92px; height: 92px; font-size: 16px; }
+button.tiro3d-btn.dash { bottom: 168px; right: 108px; width: 60px; height: 60px; }
+button.tiro3d-btn.bomb { bottom: 168px; right: 28px; width: 60px; height: 60px; }
+button.tiro3d-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0.95); }
+@media (max-width: 700px) {
+  /* celular em pé: o .tiro-tools vai para o alto, então o canto de baixo fica livre */
+  button.tiro3d-btn.fire { bottom: 24px; }
+  button.tiro3d-btn.dash { bottom: 128px; }
+  button.tiro3d-btn.bomb { bottom: 128px; }
+}
+@media (max-width: 700px) and (orientation: landscape) {
+  /* celular deitado: o .tiro-tools volta para baixo à direita */
+  button.tiro3d-btn.fire { bottom: 64px; }
+  button.tiro3d-btn.dash { bottom: 168px; }
+  button.tiro3d-btn.bomb { bottom: 168px; }
+}
 @keyframes tiro-in { from { opacity: 0; transform: translateX(-8px); } }
 @keyframes tiro-pop { from { opacity: 0; transform: translateX(-50%) scale(0.85); } }
 @media (max-width: 700px) {

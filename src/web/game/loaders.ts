@@ -37,6 +37,9 @@ export const loadTycoonScene = (): Promise<{ default: ComponentType<TycoonSceneP
 /** cena do Tiro na Sala (Pixi, em pixel art 480x270): o Pixi só entra neste pedaço */
 export const loadShooterScene = (): Promise<{ default: ComponentType<ShooterSceneProps> }> =>
   import('./shooter/scene').then((m) => ({ default: m.ShooterScene }))
+/** cena do Tiro na Sala em primeira pessoa (Three.js): o Three só entra neste pedaço */
+export const loadShooter3DScene = (): Promise<{ default: ComponentType<ShooterSceneProps> }> =>
+  import('./shooter/scene3d').then((m) => ({ default: m.Shooter3DScene }))
 /** cena da Briga na Sala (Pixi, em pixel art 480x270): o Pixi só entra neste pedaço */
 export const loadBrawlScene = (): Promise<{ default: ComponentType<BrawlSceneProps> }> =>
   import('./brawl/scene').then((m) => ({ default: m.BrawlScene }))

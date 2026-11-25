@@ -1,9 +1,11 @@
-import { Suspense, useEffect, useMemo, useRef, type ReactElement } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { BOT_SLOT_BASE, type ShooterAction, type ShooterView } from '../../shared/games/shooter/types'
 import type { MusicTrack } from '../game/contract'
-import { loadShooterScene } from '../game/loaders'
+import { loadShooter3DScene, loadShooterScene } from '../game/loaders'
 import type { ShooterSessionDeps } from '../game/shooter/contract'
 import { useShooterSession } from '../game/shooter/net/useShooterSession'
+import { isTouchOnly, tiro3dOn } from '../game/shooter/hudLogic'
+import { getPrefs, setPrefs } from '../storage'
 import { BOT_TONES, shooterTrack, type SfxBus } from '../game/shooter/sfxBus'
 import { toneOf } from './Avatar'
 import { ShooterHud } from './ShooterHud'
@@ -11,6 +13,7 @@ import { TvOff } from './Brand'
 import { lazyChunk } from '../version'
 
 const ShooterSceneLazy = lazyChunk(loadShooterScene)
+const Shooter3DSceneLazy = lazyChunk(loadShooter3DScene)
 
 export interface ShooterStageProps {
   view: ShooterView
@@ -56,6 +59,13 @@ export function ShooterStage(p: ShooterStageProps): ReactElement | null {
   )
   const session = useShooterSession(deps)
   const colors = useMemo(() => shooterColors(view), [view])
+
+  // 2D (de cima) ou 3D (primeira pessoa): só troca a cena; a sessão (rede e simulação) continua a mesma
+  const [view3d, setView3d] = useState(() => tiro3dOn(getPrefs().tiro3d, isTouchOnly()))
+  const chooseView = useCallback((v: boolean) => {
+    setView3d(v)
+    setPrefs({ tiro3d: v })
+  }, [])
 
   // música: tiroteio, final (último minuto) e fanfarra
   const onTrack = useRef(p.onTrack)
@@ -114,7 +124,11 @@ export function ShooterStage(p: ShooterStageProps): ReactElement | null {
             </div>
           }
         >
-          <ShooterSceneLazy session={session} colors={colors} reducedMotion={p.reducedMotion} onSfx={p.sfxBus.emit} inputEnabled={!p.pip} />
+          {view3d ? (
+            <Shooter3DSceneLazy key="3d" session={session} colors={colors} reducedMotion={p.reducedMotion} onSfx={p.sfxBus.emit} inputEnabled={!p.pip} />
+          ) : (
+            <ShooterSceneLazy key="2d" session={session} colors={colors} reducedMotion={p.reducedMotion} onSfx={p.sfxBus.emit} inputEnabled={!p.pip} />
+          )}
         </Suspense>
       ) : (
         <div className="scene-loading">
@@ -136,6 +150,8 @@ export function ShooterStage(p: ShooterStageProps): ReactElement | null {
           onMusicOn={p.onMusicOn}
           onMusicVolume={p.onMusicVolume}
           hidden={p.pip}
+          view3d={view3d}
+          onView3d={chooseView}
         />
       )}
     </div>
