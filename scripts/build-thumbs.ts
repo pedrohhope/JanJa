@@ -27,8 +27,8 @@ const OUT_H = 360
 const QUALITY = 0.78
 const MAX_KB = 45
 
-type GameId = 'poker' | 'golf' | 'chess' | 'checkers' | 'tycoon' | 'truco' | 'shooter' | 'brawl' | 'naval' | 'mystery' | 'pool' | 'stop' | 'velha' | 'pife'
-const ORDER: GameId[] = ['poker', 'golf', 'chess', 'checkers', 'tycoon', 'truco', 'shooter', 'brawl', 'naval', 'mystery', 'pool', 'stop', 'velha', 'pife']
+type GameId = 'poker' | 'golf' | 'chess' | 'checkers' | 'tycoon' | 'truco' | 'shooter' | 'brawl' | 'naval' | 'mystery' | 'pool' | 'stop' | 'velha' | 'pife' | 'race'
+const ORDER: GameId[] = ['poker', 'golf', 'chess', 'checkers', 'tycoon', 'truco', 'shooter', 'brawl', 'naval', 'mystery', 'pool', 'stop', 'velha', 'pife', 'race']
 
 interface Frame {
   /** o que este quadro mostra (vai para o relatório) */
@@ -127,6 +127,15 @@ const brawlShot = (arena: string, char: string, ms: number, bots = 3): Frame => 
   url: `/dev/briga?arena=${arena}&char=${char}&bots=${bots}&nivel=dificil&modo=tempo`,
   run: async (page) => {
     await waitFor(page, 'window.__briga && window.__briga.frame()', 30_000)
+    await sleep(ms)
+  }
+})
+
+const raceShot = (pista: string, ms: number, bots: number, watch = false): Frame => ({
+  what: `Corrida na Sala, pista ${pista}, ${bots} robôs${watch ? ', vista inteira' : ''}`,
+  url: `/dev/corrida?pista=${pista}&bots=${bots}&voltas=5&nivel=dificil&reduced=1${watch ? '&ver=1' : '&auto=1'}`,
+  run: async (page) => {
+    await waitFor(page, 'window.__corrida && window.__corrida.frame()', 30_000)
     await sleep(ms)
   }
 })
@@ -358,6 +367,11 @@ const PLANS: Record<GameId, Frame[]> = {
     brawlShot('estante', 'jan', 7000),
     brawlShot('telhado', 'janja', 9000),
     brawlShot('estante', 'teve', 12000, 4)
+  ],
+  race: [
+    raceShot('sala', 6500, 5),
+    raceShot('quintal', 9000, 4),
+    raceShot('sala', 8000, 5, true)
   ],
   naval: [
     navalShot(0),

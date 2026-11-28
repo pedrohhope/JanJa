@@ -263,6 +263,14 @@ export type SfxName =
   | 'briga-ja'
   | 'briga-parede'
   | 'briga-ultima-vida'
+  // corrida na sala
+  | 'corrida-ja'
+  | 'corrida-turbo'
+  | 'corrida-batida'
+  | 'corrida-toque'
+  | 'corrida-volta'
+  | 'corrida-ultima'
+  | 'corrida-chegada'
 
 /** nomes de efeito do tiro (a cena pede por string; isto valida) */
 export const SHOOTER_SFX: readonly SfxName[] = [
@@ -305,3 +313,6 @@ export const BRAWL_SFX: readonly SfxName[] = [
   'contagem',
   'podium'
 ]
+
+/** nomes de efeito da corrida (a cena pede por string; isto valida). `contagem` e `podium` são os de sempre */
+export const RACE_SFX: readonly SfxName[] = ['corrida-ja', 'corrida-turbo', 'corrida-batida', 'corrida-toque', 'corrida-volta', 'corrida-ultima', 'corrida-chegada', 'contagem', 'podium']

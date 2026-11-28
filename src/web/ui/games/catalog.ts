@@ -21,9 +21,11 @@ import { DEFAULT_SHOOTER_OPTIONS, KILL_LIMITS, MATCH_MINUTES, MAX_BOTS as SHOOTE
 import { DEFAULT_TRUCO_OPTIONS } from '../../../shared/games/truco/types'
 import { DEFAULT_TYCOON_OPTIONS } from '../../../shared/games/tycoon/types'
 import { DEFAULT_VELHA_OPTIONS } from '../../../shared/games/velha/types'
+import { TRACK_DEFS } from '../../../shared/games/race/tracks'
+import { DEFAULT_RACE_OPTIONS, MAX_BOTS as RACE_MAX_BOTS, RACE_LAPS } from '../../../shared/games/race/types'
 
 /** ícones usados aqui (subconjunto de IconName; fica local porque o tsconfig dos testes não compila TSX) */
-export type IconName = 'cards' | 'flag' | 'pawn' | 'checker' | 'dice' | 'sword' | 'target' | 'fist' | 'anchor' | 'search' | 'eight' | 'pencil' | 'velha' | 'users' | 'clock' | 'crown' | 'focus' | 'grid' | 'chart' | 'mouse' | 'sliders' | 'plus' | 'chat' | 'check' | 'stop' | 'warn'
+export type IconName = 'cards' | 'flag' | 'pawn' | 'checker' | 'dice' | 'sword' | 'target' | 'fist' | 'car' | 'anchor' | 'search' | 'eight' | 'pencil' | 'velha' | 'users' | 'clock' | 'crown' | 'focus' | 'grid' | 'chart' | 'mouse' | 'sliders' | 'plus' | 'chat' | 'check' | 'stop' | 'warn'
 
 export type GameCategory = 'cartas' | 'tabuleiro' | 'acao'
 /** filtros da vitrine; `rapidos` pega os jogos marcados com `quick` */
@@ -641,6 +643,64 @@ const ENTRIES: Omit<GameEntry, 'channel'>[] = [
     controls: [],
     defaults: () => ({}),
     summary: () => 'Dois baralhos com coringa, 9 cartas cada'
+  },
+  {
+    id: 'race',
+    name: 'Corrida na Sala',
+    title: 'Corrida na Sala',
+    icon: 'car',
+    line: 'Carrinhos de brinquedo correndo pela casa',
+    description:
+      'Corrida de carrinhos vistos de cima, de 1 a 8 pessoas mais robôs, na pista do tapete da sala ou na terra do quintal. Pegue os turbos, não saia da pista e cruze a chegada primeiro.',
+    how: [
+      { icon: 'car', text: 'Acelere, frene e faça as curvas sem sair da pista.' },
+      { icon: 'focus', text: 'As setas amarelas no chão dão turbo; fora da pista o carro fica lento.' },
+      { icon: 'flag', text: 'Ganha quem completar as voltas primeiro.' }
+    ],
+    category: 'acao',
+    quick: true,
+    people: '1 a 8 pessoas',
+    time: '2 min',
+    bots: true,
+    openLabel: 'Abrir corrida',
+    controls: [
+      {
+        kind: 'cards',
+        key: 'trackId',
+        label: 'Pista',
+        icon: 'flag',
+        choices: [
+          { value: 'sala', label: TRACK_DEFS.sala.name, sub: TRACK_DEFS.sala.sub, icon: 'flag' },
+          { value: 'quintal', label: TRACK_DEFS.quintal.name, sub: TRACK_DEFS.quintal.sub, icon: 'flag' },
+          { value: 'sorteio', label: 'Sorteio', sub: 'O jogo escolhe na hora', icon: 'dice' }
+        ]
+      },
+      {
+        kind: 'segment',
+        key: 'laps',
+        label: 'Voltas',
+        icon: 'flag',
+        choices: RACE_LAPS.map((n) => ({ value: n, label: `${n} voltas`, sub: n === 5 ? 'Padrão' : n === 3 ? 'Corrida rápida' : 'Corrida longa' }))
+      },
+      { kind: 'stepper', key: 'bots', label: 'Robôs', icon: 'users', min: 0, max: RACE_MAX_BOTS, format: botsLabel, sub: (n) => (n === 0 ? 'Só gente de verdade' : undefined) },
+      {
+        kind: 'segment',
+        key: 'botLevel',
+        label: 'Nível dos robôs',
+        icon: 'sliders',
+        choices: [
+          { value: 'facil', label: 'Fácil', sub: 'Robôs devagar nas curvas' },
+          { value: 'medio', label: 'Médio', sub: 'Padrão' },
+          { value: 'dificil', label: 'Difícil', sub: 'Robôs rápidos e certeiros' }
+        ],
+        when: (v) => asNum(v.bots, 0) > 0
+      }
+    ],
+    defaults: () => ({ ...DEFAULT_RACE_OPTIONS }),
+    summary: (v) => {
+      const track = v.trackId === 'sorteio' ? 'pista sorteada' : v.trackId === 'quintal' ? TRACK_DEFS.quintal.name : TRACK_DEFS.sala.name
+      return `${track}, ${asNum(v.laps, 5)} voltas, ${botsText(asNum(v.bots, 0))}`
+    }
   }
 ]
 

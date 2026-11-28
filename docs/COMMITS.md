@@ -54,6 +54,7 @@ chore(release): helper 0.1.3
 | `magnata` | Magnata: regras, tabuleiro, cartas, HUD |
 | `tiro` | Tiro na Sala: simulação, rede, mapas, cena, HUD |
 | `briga` | Briga na Sala: simulação, rede, arenas, cena, HUD |
+| `corrida` | Corrida na Sala: simulação, rede, pistas, cena, HUD |
 | `truco` | truco gaudério: regras, mesa, HUD |
 | `naval` | batalha naval: frota, tiros, mares, HUD |
 | `misterio` | Mistério: cartas, palpites, caderno, HUD |

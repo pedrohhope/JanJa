@@ -15,6 +15,7 @@ import { DEFAULT_TYCOON_OPTIONS } from '../src/shared/games/tycoon/types'
 import { buildOptions, CATALOG, CATALOG_LIST, defaultValues, FILTERS, matchesFilter, summarize, type OptionValues } from '../src/web/ui/games/catalog'
 import { THUMBS } from '../src/web/ui/games/thumbs'
 import { DEFAULT_VELHA_OPTIONS } from '../src/shared/games/velha/types'
+import { DEFAULT_RACE_OPTIONS } from '../src/shared/games/race/types'
 
 const DEFAULTS: Record<GameId, unknown> = {
   poker: DEFAULT_POKER,
@@ -30,7 +31,8 @@ const DEFAULTS: Record<GameId, unknown> = {
   pool: {},
   stop: { categories: DEFAULT_CATEGORIES, rounds: 5, seconds: 120 },
   velha: DEFAULT_VELHA_OPTIONS,
-  pife: {}
+  pife: {},
+  race: DEFAULT_RACE_OPTIONS
 }
 
 const accepts = (id: GameId, options: unknown): boolean => !isGameError(GAMES[id]!.parseOptions(options))
@@ -99,6 +101,7 @@ describe('catálogo de jogos', () => {
     expect(summarize('poker', DEFAULT_POKER)).toBe("Hold'em, 30 minutos, recompra")
     expect(summarize('truco', { players: 6 })).toBe('3x3, até 30 pontos, com flor')
     expect(summarize('chess', { minutes: 0 })).toBe('sem relógio')
+    expect(summarize('race', DEFAULT_RACE_OPTIONS)).toBe('A Sala, 5 voltas, 3 robôs')
   })
 
   it('os filtros pegam todos os jogos em Todos e cada jogo em alguma categoria', () => {

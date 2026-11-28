@@ -1438,6 +1438,42 @@ button.tiro-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0
 .tiro-board { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: min(460px, 94%); max-height: 86%; overflow: auto; padding: 12px 16px; background: rgba(46, 38, 34, 0.95); border: 1px solid var(--rug); border-radius: var(--r-panel); text-shadow: none; }
 .tiro-board strong { display: block; margin-bottom: 6px; color: var(--lamp); }
 .tiro-board table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+
+/* corrida na sala */
+.corrida-scene { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--wall); touch-action: none; user-select: none; outline: none; }
+.corrida-touch { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.corrida-pad { position: absolute; bottom: 16px; display: flex; gap: 12px; pointer-events: auto; }
+.corrida-pad.left { left: 14px; }
+.corrida-pad.right { right: 14px; bottom: 64px; flex-direction: column-reverse; align-items: flex-end; }
+button.corrida-btn { --bg: rgba(46, 38, 34, 0.82); --bg-h: rgba(59, 49, 44, 0.9); --bd: rgba(243, 235, 221, 0.45); --fg: var(--paper); width: 68px; height: 68px; padding: 0; border-radius: 50%; font-family: 'Pixelify Sans Variable', 'Pixelify Sans', monospace; font-size: 22px; touch-action: none; }
+button.corrida-btn.acelerar { --bd: var(--lamp); width: 84px; height: 84px; font-size: 14px; }
+button.corrida-btn.frear { width: 60px; height: 60px; font-size: 13px; }
+button.corrida-btn:active { --bg: var(--rug); --bd: var(--lamp); transform: scale(0.95); }
+.corrida-side { position: absolute; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 6px; max-width: 30%; }
+.corrida-pos { display: flex; align-items: baseline; gap: 6px; padding: 2px 10px 4px; background: rgba(34, 28, 25, 0.82); border-radius: var(--r-ctl); align-self: flex-start; }
+.corrida-pos strong { font-size: 2.6em; font-weight: 600; line-height: 1; color: var(--lamp); }
+.corrida-pos small { color: var(--dust); }
+.corrida-rows { list-style: none; margin: 0; padding: 4px 8px; display: flex; flex-direction: column; gap: 1px; background: rgba(34, 28, 25, 0.7); border-radius: var(--r-ctl); font-size: 0.82em; }
+.corrida-rows li { display: flex; align-items: center; gap: 6px; color: var(--dust); }
+.corrida-rows li.me { color: var(--lamp); }
+.corrida-rows .n { min-width: 1.2em; text-align: right; font-variant-numeric: tabular-nums; }
+.corrida-rows .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 9em; }
+.corrida-count { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); font-size: 6em; font-weight: 600; color: var(--lamp); animation: corrida-count 0.9s var(--ease) both; }
+.corrida-toast { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; padding: 6px 18px; background: rgba(34, 28, 25, 0.88); border: 1px solid var(--rug); border-radius: var(--r-panel); animation: tiro-pop 0.24s var(--ease) both; white-space: nowrap; }
+.corrida-toast strong { font-size: 1.8em; font-weight: 600; line-height: 1.1; }
+.corrida-toast small { color: var(--dust); }
+.corrida-toast.go { top: 34%; border: 0; background: none; }
+.corrida-toast.go strong { font-size: 5em; color: var(--on); }
+.corrida-toast.best { border-color: var(--lamp); }
+.corrida-toast.best strong, .corrida-toast.last strong { color: var(--lamp); }
+.corrida-wrong { position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%); padding: 6px 16px; background: rgba(34, 28, 25, 0.9); border: 1px solid var(--off); border-radius: var(--r-panel); color: var(--off); font-size: 1.5em; font-weight: 600; }
+.corrida-me { min-width: 9em; }
+.corrida-lap { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.corrida-lap small { color: var(--dust); }
+.corrida-boost { color: var(--lamp); font-weight: 600; }
+@keyframes corrida-count { from { opacity: 0; transform: translate(-50%, -50%) scale(1.6); } 30% { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0.85; } }
+@media (prefers-reduced-motion: reduce) { .corrida-count, .corrida-toast { animation: none; } }
+@media (max-width: 700px) { .corrida-rows { display: none; } }
 .tiro-board th, .tiro-board td { padding: 3px 8px; text-align: right; white-space: nowrap; }
 .tiro-board thead th { color: var(--dust); font-weight: 500; }
 .tiro-board th:first-child { text-align: left; }

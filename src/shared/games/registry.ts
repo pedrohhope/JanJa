@@ -12,6 +12,7 @@ import { trucoGame } from './truco'
 import { tycoonGame } from './tycoon'
 import { velhaGame } from './velha'
 import { pifeGame } from './pife'
+import { raceGame } from './race'
 import type { GameId } from './protocol'
 import type { AnyGame } from './types'
 
@@ -33,5 +34,6 @@ export const GAMES: GameRegistry = {
   pool: poolGame,
   stop: stopGame,
   velha: velhaGame,
-  pife: pifeGame
+  pife: pifeGame,
+  race: raceGame
 }

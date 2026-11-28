@@ -15,6 +15,7 @@
  * /dev/naval (NavalLab): batalha naval contra um bot; /dev/mystery (MysteryLab): Mistério com bots;
  * /dev/pool (PoolLab): sinuca contra um bot; /dev/stop (StopLab): Stop com bots;
  * /dev/pife (PifeLab): pife com bots (`?n=4`, `window.__pife`);
+ * /dev/corrida (RaceLab): a Corrida na Sala com robôs, sem rede (`?pista=quintal&bots=3&voltas=3&nivel=dificil&ver=1`, `window.__corrida`);
  * /dev/velha (VelhaLab): Velha ao quadrado contra um bot de lances aleatórios (`?bot=0&min=5`, `window.__velha`).
  */
 import type { ComponentType } from 'react'
@@ -39,5 +40,6 @@ export const DEV_ROUTES: DevRoute[] = [
   { path: '/dev/pool', load: () => import('./PoolLab').then((m) => ({ default: m.PoolLab })) },
   { path: '/dev/stop', load: () => import('./StopLab').then((m) => ({ default: m.StopLab })) },
   { path: '/dev/velha', load: () => import('./VelhaLab').then((m) => ({ default: m.VelhaLab })) },
-  { path: '/dev/pife', load: () => import('./PifeLab').then((m) => ({ default: m.PifeLab })) }
+  { path: '/dev/pife', load: () => import('./PifeLab').then((m) => ({ default: m.PifeLab })) },
+  { path: '/dev/corrida', load: () => import('./RaceLab').then((m) => ({ default: m.RaceLab })) }
 ]

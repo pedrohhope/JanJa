@@ -2,6 +2,7 @@
  * Pontos de carga lazy dos jogos: Pixi, GSAP, Three.js, os tabuleiros (xadrez, damas, Magnata), a mesa do truco, a batalha naval, o Mistério, a sinuca, o Stop, a Velha ao quadrado, o pife e o áudio só entram no bundle quando um jogo abre.
  */
 import type { BrawlSceneProps } from './brawl/scene'
+import type { RaceSceneProps } from './race/scene'
 import type { ShooterSceneProps } from './shooter/contract'
 import type { CheckersSceneProps, ChessSceneProps, GameAudio, GolfSceneProps, MysterySceneProps, NavalSceneProps, PokerSceneProps, PoolSceneProps, StopSceneProps, TrucoSceneProps, TycoonSceneProps, VelhaSceneProps, PifeSceneProps } from './contract'
 import type { ComponentType } from 'react'
@@ -43,6 +44,9 @@ export const loadShooter3DScene = (): Promise<{ default: ComponentType<ShooterSc
 /** cena da Briga na Sala (Pixi, em pixel art 480x270): o Pixi só entra neste pedaço */
 export const loadBrawlScene = (): Promise<{ default: ComponentType<BrawlSceneProps> }> =>
   import('./brawl/scene').then((m) => ({ default: m.BrawlScene }))
+/** cena da Corrida na Sala (canvas 2D, sem biblioteca de desenho) */
+export const loadRaceScene = (): Promise<{ default: ComponentType<RaceSceneProps> }> =>
+  import('./race/scene').then((m) => ({ default: m.RaceScene }))
 /** mesa do truco (HTML e SVG, sem biblioteca de desenho) */
 export const loadTrucoScene = (): Promise<{ default: ComponentType<TrucoSceneProps> }> =>
   import('./truco/scene').then((m) => ({ default: m.TrucoScene }))

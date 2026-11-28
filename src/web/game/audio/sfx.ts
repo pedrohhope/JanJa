@@ -271,6 +271,36 @@ export function sfxPlan(name: SfxName, count = 1): SfxVoice[] {
         { kind: 'pulse', t: 0.14, dur: 0.12, freq: hz('A4'), vel: 0.16, duty: 0.5 },
         { kind: 'pulse', t: 0.28, dur: 0.3, freq: hz('E4'), vel: 0.16, duty: 0.5 }
       ]
+    // ---------- corrida na sala ----------
+    case 'corrida-ja':
+      return ['G4', 'B4', 'D5', 'G5'].map((n) => ({ kind: 'pulse', t: 0, dur: 0.4, freq: hz(n), vel: 0.13, duty: 0.25 }) as SfxVoice).concat([{ kind: 'tri', t: 0, dur: 0.35, freq: hz('G2'), vel: 0.4 }])
+    case 'corrida-turbo':
+      return [
+        { kind: 'noise', t: 0, dur: 0.35, vel: 0.3, attack: 0.02, filter: { type: 'bandpass', freq: 400, freqEnd: 3600, q: 1.4 } },
+        { kind: 'pulse', t: 0, dur: 0.3, freq: 180, freqEnd: 720, vel: 0.12, duty: 0.25 }
+      ]
+    case 'corrida-batida':
+      return [
+        { kind: 'noise', t: 0, dur: 0.14, vel: 0.5, filter: { type: 'lowpass', freq: 2200, freqEnd: 300 } },
+        { kind: 'tri', t: 0, dur: 0.12, freq: 150, freqEnd: 60, vel: 0.55 },
+        click(0, 0.2, 2600)
+      ]
+    case 'corrida-toque':
+      return [click(0, 0.3, 1800), { kind: 'tri', t: 0, dur: 0.06, freq: 260, freqEnd: 160, vel: 0.3 }]
+    case 'corrida-volta':
+      return [
+        { kind: 'pulse', t: 0, dur: 0.1, freq: hz('C6'), vel: 0.16, duty: 0.25 },
+        { kind: 'pulse', t: 0.1, dur: 0.18, freq: hz('E6'), vel: 0.16, duty: 0.25 }
+      ]
+    case 'corrida-ultima':
+      return [
+        { kind: 'pulse', t: 0, dur: 0.1, freq: hz('E5'), vel: 0.16, duty: 0.5 },
+        { kind: 'pulse', t: 0.12, dur: 0.1, freq: hz('E5'), vel: 0.16, duty: 0.5 },
+        { kind: 'pulse', t: 0.24, dur: 0.32, freq: hz('B5'), vel: 0.16, duty: 0.5 },
+        { kind: 'tri', t: 0.24, dur: 0.3, freq: hz('E3'), vel: 0.3 }
+      ]
+    case 'corrida-chegada':
+      return ['C5', 'E5', 'G5', 'C6', 'E6'].map((n, i) => ({ kind: 'pulse', t: i * 0.08, dur: i === 4 ? 0.4 : 0.1, freq: hz(n), vel: 0.15, duty: 0.25 }) as SfxVoice).concat(click(0, 0.2, 4000))
   }
 }
 

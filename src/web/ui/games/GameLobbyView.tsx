@@ -31,12 +31,12 @@ export function GameLobbyView({ lobby, hasView, api, onClose, onShowTable }: Pro
   // em andamento, a TV passa os quadros como canal; parada, fica no primeiro
   const { index } = useChannelSurf(frames.length, lobby.started, 2200, reduced, entry.id)
   const mine = lobby.seats.find((s) => s.you)
-  // golfe, Magnata, tiro, briga e Stop falam em "entrar na partida"; os jogos de mesa, em "sentar"
-  const joins = lobby.gameId === 'golf' || lobby.gameId === 'tycoon' || lobby.gameId === 'shooter' || lobby.gameId === 'brawl' || lobby.gameId === 'stop'
+  // golfe, Magnata, tiro, briga, corrida e Stop falam em "entrar na partida"; os jogos de mesa, em "sentar"
+  const joins = lobby.gameId === 'golf' || lobby.gameId === 'tycoon' || lobby.gameId === 'shooter' || lobby.gameId === 'brawl' || lobby.gameId === 'race' || lobby.gameId === 'stop'
   const isChess = lobby.gameId === 'chess' || lobby.gameId === 'checkers' || lobby.gameId === 'velha'
   const label = summarize(lobby.gameId, lobby.options)
   const where = joins || isChess ? 'a partida' : 'a mesa'
-  const realtime = lobby.gameId === 'shooter' || lobby.gameId === 'brawl'
+  const realtime = lobby.gameId === 'shooter' || lobby.gameId === 'brawl' || lobby.gameId === 'race'
 
   const tv = (
     <TvFrame id={entry.id} src={frames[index]} alt={`Print do ${entry.name}`} icon={entry.icon} channel={entry.channel} size="mini" on={lobby.started} liveBadge={lobby.started} />

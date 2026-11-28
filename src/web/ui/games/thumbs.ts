@@ -26,5 +26,6 @@ export const THUMBS: Record<GameId, readonly string[]> = {
   pool: frames('pool', 3),
   stop: frames('stop', 3),
   velha: frames('velha', 3),
-  pife: frames('pife', 3)
+  pife: frames('pife', 3),
+  race: frames('race', 3)
 }
